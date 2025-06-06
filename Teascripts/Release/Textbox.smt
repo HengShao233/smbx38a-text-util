@@ -996,16 +996,28 @@ Dim __msg_avatar_srcH_param_cache As Integer = 0
 
 Dim __isCreated As Integer = 0
 
+' 设置对话框位置 (屏幕坐标)
+' @param x x 位置
+' @param y y 位置
 Export Script Textbox_StoreMsgPos(x As Integer, y As Integer)
     __msg_pX_param_cache = x
     __msg_pY_param_cache = y
 End Script
 
+' 设置对话框尺寸
+' @param w 宽
+' @param h 高
 Export Script Textbox_StoreMsgSize(w As Integer, h As Integer)
     __msg_sW_param_cache = w
     __msg_sH_param_cache = h
 End Script
 
+' 设置对话框头像
+' @param npcId 头像的 npc id
+' @param srcX 头像在 npc 贴图中的 x 位置
+' @param srcY 头像在 npc 贴图中的 y 位置
+' @param srcW 头像在 npc 贴图中的宽
+' @param srcH 头像在 npc 贴图中的高
 Export Script Textbox_StoreAvatar(npcId As Long, srcX As Integer, srcY As Integer, srcW As Integer, srcH As Integer)
     __msg_avatar_npcId_param_cache = npcId
     __msg_avatar_srcX_param_cache = srcX
@@ -1014,16 +1026,25 @@ Export Script Textbox_StoreAvatar(npcId As Long, srcX As Integer, srcY As Intege
     __msg_avatar_srcH_param_cache = srcH
 End Script
 
+' 设置头像位置 (屏幕坐标)
+' @param x x 位置
+' @param y y 位置
 Export Script Textbox_StoreAvatarPos(x As Integer, y As Integer)
     __msg_avatar_pX_param_cache = x
     __msg_avatar_pY_param_cache = y
 End Script
 
+' 设置头像尺寸
+' @param w 宽
+' @param h 高
 Export Script Textbox_StoreAvatarSize(w As Integer, h As Integer)
     __msg_avatar_sW_param_cache = w
     __msg_avatar_sH_param_cache = h
 End Script
 
+' 提交对话文本 (T 串)
+' @param txt T 串文本
+' @param animStartFac 过渡动画设置 -1: 退场和入场; 0: 仅入场; 1: 硬切无动画
 Export Script Textbox_Submit(txt As String, animStartFac As Double)
     If txt = "" Then
         Call TextboxLowLevel_SetPosX(0)
@@ -1145,6 +1166,12 @@ Export Script Textbox_Submit(txt As String, animStartFac As Double)
     __animFac = animStartFac
 End Script
 
+' 直接设置头像 (可以用于快速修改头像表情, 没有任何过渡动画, 也不支持改变头像大小)
+' @param npcId 头像的 npc id
+' @param srcX 头像在 npc 贴图中的 x 位置
+' @param srcY 头像在 npc 贴图中的 y 位置
+' @param srcW 头像在 npc 贴图中的宽
+' @param srcH 头像在 npc 贴图中的高
 Export Script Textbox_SetAvatarImm(npcId As Long, srcX As Integer, srcY As Integer, srcW As Integer, srcH As Integer, Return Integer)
     If __isCreated = 0 Then
         Return 0
@@ -1166,6 +1193,26 @@ Export Script Textbox_SetAvatarImm(npcId As Long, srcX As Integer, srcY As Integ
         Bitmap(__msg_bmpIdStart).scrwidth = __msg_avatar_srcW
         Bitmap(__msg_bmpIdStart).scrheight = __msg_avatar_srcH
     End If
+    Return 1
+End Script
+
+' 直接设置九宫格 npc id (可以用于快速修改头像表情, 没有任何过渡动画, 也不支持改变头像大小)
+' @param npcId 头像的 npc id
+Export Script Textbox_SetSet9GridNpcIdImm(npcId As Long, Return Integer)
+    __msg_9Grid_npcId = npcId
+    If __isCreated = 0 Then
+        Return 0
+    End If
+
+    Bitmap(__msg_bmpIdStart + 1).scrid = __msg_9Grid_npcId
+    Bitmap(__msg_bmpIdStart + 2).scrid = __msg_9Grid_npcId
+    Bitmap(__msg_bmpIdStart + 3).scrid = __msg_9Grid_npcId
+    Bitmap(__msg_bmpIdStart + 4).scrid = __msg_9Grid_npcId
+    Bitmap(__msg_bmpIdStart + 5).scrid = __msg_9Grid_npcId
+    Bitmap(__msg_bmpIdStart + 6).scrid = __msg_9Grid_npcId
+    Bitmap(__msg_bmpIdStart + 7).scrid = __msg_9Grid_npcId
+    Bitmap(__msg_bmpIdStart + 8).scrid = __msg_9Grid_npcId
+    Bitmap(__msg_bmpIdStart + 9).scrid = __msg_9Grid_npcId
     Return 1
 End Script
 
