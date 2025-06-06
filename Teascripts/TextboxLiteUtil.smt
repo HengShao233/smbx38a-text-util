@@ -1,17 +1,17 @@
-' ----------------------------------------------------- const var
-Dim __char_npcId As Long = 1           ' 字符素材 npc id
-Dim __bmpIdStart As Long = 1000        ' bmp 起始 id
-Dim __defaultZpos As Double = 0.5      ' 默认 zpos
-Dim __9Grid_npcId As Long = 2          ' 九宫格素材 npc id
-Dim __9Grid_x As Long = 0
-Dim __9Grid_y As Long = 0
-Dim __9Grid_w As Long = 18             '    a   w   c
-Dim __9Grid_h As Long = 18             '  b ┌┬─────┬─┐
-Dim __9Grid_a As Long = 07             '    ├┼─────┼─┤
-Dim __9Grid_b As Long = 07             '    ││     │ │ h
-Dim __9Grid_c As Long = 07             '    ├┼─────┼─┤
-Dim __9Grid_d As Long = 07             '    └┴─────┴─┘ d ---- 九宫格六个参数
-Dim __max_char As Integer = 200        ' 最大字符数
+' ----------------------------------------------------- config
+Dim __lBox_char_npcId As Long = 1           ' 字符素材 npc id
+Dim __lBox_bmpIdStart As Long = 1000        ' bmp 起始 id
+Dim __lBox_defaultZpos As Double = 0.5      ' 默认 zpos
+Dim __lBox_9Grid_npcId As Long = 2          ' 九宫格素材 npc id
+Dim __lBox_9Grid_x As Long = 0
+Dim __lBox_9Grid_y As Long = 0
+Dim __lBox_9Grid_w As Long = 18             '    a   w   c
+Dim __lBox_9Grid_h As Long = 18             '  b ┌┬─────┬─┐
+Dim __lBox_9Grid_a As Long = 07             '    ├┼─────┼─┤
+Dim __lBox_9Grid_b As Long = 07             '    ││     │ │ h
+Dim __lBox_9Grid_c As Long = 07             '    ├┼─────┼─┤
+Dim __lBox_9Grid_d As Long = 07             '    └┴─────┴─┘ d ---- 九宫格六个参数
+Dim __lBox_max_char As Integer = 200        ' 最大字符数
 
 ' ----------------------------------------------------- bubbles data
 ' 气泡数据的格式: [28 char](这里 1 char == 2 byte)
@@ -22,7 +22,7 @@ Dim __max_char As Integer = 200        ' 最大字符数
 '     |[14]: time[1char]            | // 持续时间
 '     |[15]: colorRGB[3char]        |
 '     |[18]: offsetTargetId[2char]  |[20:] id[char]                   |
-'     |[21]: bmpIdStart[2char]      | // bmpId 只保存相对于 __bmpIdStart 的偏移量
+'     |[21]: bmpIdStart[2char]      | // bmpId 只保存相对于 __lBox_bmpIdStart 的偏移量
 '     |[23]: bmpIdEnd[2char]        |
 '     |[25]: height[1char]          |
 '     |[26]: createTime[2char]      |
@@ -254,7 +254,7 @@ Script __releaseLast(Return Integer)
     __box_tempIF = __readInt_2Char(__ret_s, 21)
     __box_tempIG = __readInt_2Char(__ret_s, 23)
     If __box_tempIF >= 0 and __box_tempIG >= 0 Then
-        For __box_tempID = __box_tempIF + __bmpIdStart To __box_tempIG + __bmpIdStart Step 1
+        For __box_tempID = __box_tempIF + __lBox_bmpIdStart To __box_tempIG + __lBox_bmpIdStart Step 1
             Call BErase(2, __box_tempID)
         Next
     End If
@@ -281,7 +281,7 @@ Script __removeIdx(idx As Integer)
     __box_tempIF = __readInt_2Char(__ret_s, 21)
     __box_tempIG = __readInt_2Char(__ret_s, 23)
     If __box_tempIF >= 0 and __box_tempIG >= 0 Then
-        For __box_tempID = __box_tempIF + __bmpIdStart To __box_tempIG + __bmpIdStart Step 1
+        For __box_tempID = __box_tempIF + __lBox_bmpIdStart To __box_tempIG + __lBox_bmpIdStart Step 1
             Call BErase(2, __box_tempID)
         Next
     End If
@@ -331,8 +331,8 @@ Script __prepareGraphicData_fromCache(content As String, id As Integer)
     ' 准备图形数据
     Call TXT_LoadStr(content)
     __box_tempIE = TXT_GetLen()
-    If __box_tempIE > __max_char Then
-        __box_tempIE = __max_char
+    If __box_tempIE > __lBox_max_char Then
+        __box_tempIE = __lBox_max_char
     End If
     __box_tempIE = __allocateBmp(__box_tempIE + 10, id) ' 返回申请到的 bmp 起始位
 
@@ -342,7 +342,7 @@ Script __prepareGraphicData_fromCache(content As String, id As Integer)
     __box_tempID = 0 ' w-calc
     __box_tempIB = 0 ' h
     __box_tempDA = (TXT_GetCharSize() + __size_cache) / TXT_GetCharSize()
-    Do While __box_tempIC >= 0 and __box_tempII <= __max_char
+    Do While __box_tempIC >= 0 and __box_tempII <= __lBox_max_char
         If TXT_IsFlag(__box_tempIC) <> 0 Then
             __box_tempII = __box_tempII + 1
             If TXT_GetFlag(__box_tempIC) = "n" Then
@@ -356,12 +356,12 @@ Script __prepareGraphicData_fromCache(content As String, id As Integer)
             __box_tempID = 0
             __box_tempIB = __box_tempIB + TXT_GetCharSize() * __box_tempDA
         End If
-        Call BMPCreate(__box_tempIE + __bmpIdStart, __char_npcId, 0, 1,     TXT_GetDestX(__box_tempIC), TXT_GetDestY(__box_tempIC), TXT_GetCharSize(), TXT_GetCharSize(),     __box_tempID + __9Grid_a + __offset_cache_x, __box_tempIB + __9Grid_b + __offset_cache_y, __box_tempDA, __box_tempDA,     0, 0,     0, -1)
-        Bitmap(__box_tempIE + __bmpIdStart).zpos = __zpos_cache
-        Bitmap(__box_tempIE + __bmpIdStart).forecolor_a = 255
-        Bitmap(__box_tempIE + __bmpIdStart).forecolor_r = __color_cache_r
-        Bitmap(__box_tempIE + __bmpIdStart).forecolor_g = __color_cache_g
-        Bitmap(__box_tempIE + __bmpIdStart).forecolor_b = __color_cache_b
+        Call BMPCreate(__box_tempIE + __lBox_bmpIdStart, __lBox_char_npcId, 0, 1,     TXT_GetDestX(__box_tempIC), TXT_GetDestY(__box_tempIC), TXT_GetCharSize(), TXT_GetCharSize(),     __box_tempID + __lBox_9Grid_a + __offset_cache_x, __box_tempIB + __lBox_9Grid_b + __offset_cache_y, __box_tempDA, __box_tempDA,     0, 0,     0, -1)
+        Bitmap(__box_tempIE + __lBox_bmpIdStart).zpos = __zpos_cache
+        Bitmap(__box_tempIE + __lBox_bmpIdStart).forecolor_a = 255
+        Bitmap(__box_tempIE + __lBox_bmpIdStart).forecolor_r = __color_cache_r
+        Bitmap(__box_tempIE + __lBox_bmpIdStart).forecolor_g = __color_cache_g
+        Bitmap(__box_tempIE + __lBox_bmpIdStart).forecolor_b = __color_cache_b
 
         __box_tempID = __box_tempID + __getWidth(__box_tempIC) * __box_tempDA
         If __box_tempID > __box_tempIA Then
@@ -376,38 +376,38 @@ Script __prepareGraphicData_fromCache(content As String, id As Integer)
     End If
     __box_tempIB = __box_tempIB + TXT_GetCharSize() * __box_tempDA
 
-    Call __writeInt_char("", 13, __box_tempIA + __9Grid_a + __9Grid_c) ' width
-    Call __writeInt_char("", 25, __box_tempIB + __9Grid_b + __9Grid_d) ' height
+    Call __writeInt_char("", 13, __box_tempIA + __lBox_9Grid_a + __lBox_9Grid_c) ' width
+    Call __writeInt_char("", 25, __box_tempIB + __lBox_9Grid_b + __lBox_9Grid_d) ' height
     ' 最后退出到 TextboxLite_Submit 的时候再保存到 idx 对应的字符串中
 
     __box_tempDA = __box_tempIA
     __box_tempDB = __box_tempIB
 
     ' 九宫格 - 左上 右上 左下 右下
-    Call BMPCreate(__box_tempIE + __bmpIdStart, __9Grid_npcId, 0, 1,         __9Grid_x, __9Grid_y, __9Grid_a, __9Grid_b,                                                     __offset_cache_x, __offset_cache_y, 1, 1,                                                         0, 0,     0, -1)
-    Call BMPCreate(__box_tempIE + 1 + __bmpIdStart, __9Grid_npcId, 0, 1,     __9Grid_x + __9Grid_a + __9Grid_w, __9Grid_y, __9Grid_c, __9Grid_b,                             __9Grid_a + __box_tempDA + __offset_cache_x, __offset_cache_y, 1, 1,                             0, 0,     0, -1)
-    Call BMPCreate(__box_tempIE + 2 + __bmpIdStart, __9Grid_npcId, 0, 1,     __9Grid_x, __9Grid_y + __9Grid_b + __9Grid_h, __9Grid_a, __9Grid_d,                             __offset_cache_x, __9Grid_b + __box_tempDB + __offset_cache_y, 1, 1,                             0, 0,     0, -1)
-    Call BMPCreate(__box_tempIE + 3 + __bmpIdStart, __9Grid_npcId, 0, 1,     __9Grid_x + __9Grid_a + __9Grid_w, __9Grid_y + __9Grid_b + __9Grid_h, __9Grid_c, __9Grid_d,     __9Grid_a + __box_tempDA + __offset_cache_x, __9Grid_b + __box_tempDB + __offset_cache_y, 1, 1, 0, 0,     0, -1)
-    Bitmap(__box_tempIE + __bmpIdStart).zpos = __zpos_cache + 0.00001
-    Bitmap(__box_tempIE + 1 + __bmpIdStart).zpos = __zpos_cache + 0.00001
-    Bitmap(__box_tempIE + 2 + __bmpIdStart).zpos = __zpos_cache + 0.00001
-    Bitmap(__box_tempIE + 3 + __bmpIdStart).zpos = __zpos_cache + 0.00001
+    Call BMPCreate(__box_tempIE + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,         __lBox_9Grid_x, __lBox_9Grid_y, __lBox_9Grid_a, __lBox_9Grid_b,                                                     __offset_cache_x, __offset_cache_y, 1, 1,                                                         0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + 1 + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_x + __lBox_9Grid_a + __lBox_9Grid_w, __lBox_9Grid_y, __lBox_9Grid_c, __lBox_9Grid_b,                             __lBox_9Grid_a + __box_tempDA + __offset_cache_x, __offset_cache_y, 1, 1,                             0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + 2 + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_x, __lBox_9Grid_y + __lBox_9Grid_b + __lBox_9Grid_h, __lBox_9Grid_a, __lBox_9Grid_d,                             __offset_cache_x, __lBox_9Grid_b + __box_tempDB + __offset_cache_y, 1, 1,                             0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + 3 + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_x + __lBox_9Grid_a + __lBox_9Grid_w, __lBox_9Grid_y + __lBox_9Grid_b + __lBox_9Grid_h, __lBox_9Grid_c, __lBox_9Grid_d,     __lBox_9Grid_a + __box_tempDA + __offset_cache_x, __lBox_9Grid_b + __box_tempDB + __offset_cache_y, 1, 1, 0, 0,     0, -1)
+    Bitmap(__box_tempIE + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
+    Bitmap(__box_tempIE + 1 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
+    Bitmap(__box_tempIE + 2 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
+    Bitmap(__box_tempIE + 3 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
     __box_tempIE = __box_tempIE + 4
 
     ' 九宫格 - 左中 右中 上中 下中
-    Call BMPCreate(__box_tempIE + __bmpIdStart, __9Grid_npcId, 0, 1,         __9Grid_x, __9Grid_y + __9Grid_b, __9Grid_a, __9Grid_h,                             __offset_cache_x, __9Grid_b + __offset_cache_y, 1, __box_tempDB / __9Grid_h,                              0, 0,     0, -1)
-    Call BMPCreate(__box_tempIE + 1 + __bmpIdStart, __9Grid_npcId, 0, 1,     __9Grid_x + __9Grid_a + __9Grid_w, __9Grid_y + __9Grid_b, __9Grid_c, __9Grid_h,     __9Grid_a + __box_tempDA + __offset_cache_x, __9Grid_b + __offset_cache_y, 1, __box_tempDB / __9Grid_h,  0, 0,     0, -1)
-    Call BMPCreate(__box_tempIE + 2 + __bmpIdStart, __9Grid_npcId, 0, 1,     __9Grid_x + __9Grid_a, __9Grid_y, __9Grid_w, __9Grid_b,                             __9Grid_a + __offset_cache_x, __offset_cache_y, __box_tempDA / __9Grid_w, 1,                              0, 0,     0, -1)
-    Call BMPCreate(__box_tempIE + 3 + __bmpIdStart, __9Grid_npcId, 0, 1,     __9Grid_x + __9Grid_a, __9Grid_y + __9Grid_b + __9Grid_h, __9Grid_w, __9Grid_d,     __9Grid_a + __offset_cache_x, __9Grid_b + __box_tempDB + __offset_cache_y, __box_tempDA / __9Grid_w, 1,  0, 0,     0, -1)
-    Bitmap(__box_tempIE + __bmpIdStart).zpos = __zpos_cache + 0.00001
-    Bitmap(__box_tempIE + 1 + __bmpIdStart).zpos = __zpos_cache + 0.00001
-    Bitmap(__box_tempIE + 2 + __bmpIdStart).zpos = __zpos_cache + 0.00001
-    Bitmap(__box_tempIE + 3 + __bmpIdStart).zpos = __zpos_cache + 0.00001
+    Call BMPCreate(__box_tempIE + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,         __lBox_9Grid_x, __lBox_9Grid_y + __lBox_9Grid_b, __lBox_9Grid_a, __lBox_9Grid_h,                             __offset_cache_x, __lBox_9Grid_b + __offset_cache_y, 1, __box_tempDB / __lBox_9Grid_h,                              0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + 1 + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_x + __lBox_9Grid_a + __lBox_9Grid_w, __lBox_9Grid_y + __lBox_9Grid_b, __lBox_9Grid_c, __lBox_9Grid_h,     __lBox_9Grid_a + __box_tempDA + __offset_cache_x, __lBox_9Grid_b + __offset_cache_y, 1, __box_tempDB / __lBox_9Grid_h,  0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + 2 + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_x + __lBox_9Grid_a, __lBox_9Grid_y, __lBox_9Grid_w, __lBox_9Grid_b,                             __lBox_9Grid_a + __offset_cache_x, __offset_cache_y, __box_tempDA / __lBox_9Grid_w, 1,                              0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + 3 + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_x + __lBox_9Grid_a, __lBox_9Grid_y + __lBox_9Grid_b + __lBox_9Grid_h, __lBox_9Grid_w, __lBox_9Grid_d,     __lBox_9Grid_a + __offset_cache_x, __lBox_9Grid_b + __box_tempDB + __offset_cache_y, __box_tempDA / __lBox_9Grid_w, 1,  0, 0,     0, -1)
+    Bitmap(__box_tempIE + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
+    Bitmap(__box_tempIE + 1 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
+    Bitmap(__box_tempIE + 2 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
+    Bitmap(__box_tempIE + 3 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
     __box_tempIE = __box_tempIE + 4
 
     ' 九宫格 - 中
-    Call BMPCreate(__box_tempIE + __bmpIdStart, __9Grid_npcId, 0, 1,     __9Grid_a, __9Grid_b, __9Grid_w, __9Grid_h,     __9Grid_a + __offset_cache_x, __9Grid_b + __offset_cache_y, __box_tempDA / __9Grid_w, __box_tempDB / __9Grid_h,     0, 0,     0, -1)
-    Bitmap(__box_tempIE + __bmpIdStart).zpos = __zpos_cache + 0.00001
+    Call BMPCreate(__box_tempIE + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_a, __lBox_9Grid_b, __lBox_9Grid_w, __lBox_9Grid_h,     __lBox_9Grid_a + __offset_cache_x, __lBox_9Grid_b + __offset_cache_y, __box_tempDA / __lBox_9Grid_w, __box_tempDB / __lBox_9Grid_h,     0, 0,     0, -1)
+    Bitmap(__box_tempIE + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
 End Script
 
 Script __clearCache()
@@ -420,12 +420,19 @@ Script __clearCache()
     __offset_cache_y = 0
     __anchor_cache_x = 0
     __anchor_cache_y = 0
-    __zpos_cache = __defaultZpos
+    __zpos_cache = __lBox_defaultZpos
     __bubbleShapeData_cache = __bubbleShapeDataDefault
 End Script
 
 ' ----------------------------------------------------- 外部函数
-
+' 设置跟随目标的 id
+' @param id 跟随目标 id
+' @param type 跟随目标类型:
+'     1 - 跟随 npc
+'     2 - 跟随 bitmap
+'     3 - 跟随 character
+'     4 - 跟随 block
+'     5 - 跟随 bgo
 Export Script TextboxLite_StoreTargetId(id As Integer, type As Integer)
     __ret_s = __bubbleShapeData_cache
     __box_tempIH = __readInt_char(__ret_s, 28) and -57
@@ -434,6 +441,9 @@ Export Script TextboxLite_StoreTargetId(id As Integer, type As Integer)
     __bubbleShapeData_cache = __ret_s
 End Script
 
+' 设置位置
+' @param x x 坐标
+' @param y y 坐标
 Export Script TextboxLite_StorePos(x As Long, y As Long)
     __ret_s = __bubbleShapeData_cache
     Call __writeInt_2Char("", 1, x)
@@ -441,40 +451,60 @@ Export Script TextboxLite_StorePos(x As Long, y As Long)
     __bubbleShapeData_cache = __ret_s
 End Script
 
+' 设置锚点
+' @param x x 轴向锚点 [0, 1]
+' @param y y 轴向锚点 [0, 1]
 Export Script TextboxLite_StoreAnchor(x As Double, y As Double)
     __anchor_cache_x = x
     __anchor_cache_y = y
 End Script
 
+' 设置偏移
+' @param x x 轴向偏移
+' @param y y 轴向偏移
 Export Script TextboxLite_StoreOffset(x As Long, y As Long)
     __offset_cache_x = x
     __offset_cache_y = y
 End Script
 
+' 设置宽度限制
+' @param x 宽度限制
 Export Script TextboxLite_StoreWidth(x As Integer)
     __wid_cache = x
 End Script
 
+' 设置最大停留时间
+' @param x 最大停留时间
 Export Script TextboxLite_StoreTime(x As Integer)
     Call __writeInt_char(__bubbleShapeData_cache, 14, x)
     __bubbleShapeData_cache = __ret_s
 End Script
 
+' 设置字体大小
+' @param x 字体大小
 Export Script TextboxLite_StoreSize(x As Integer)
     __size_cache = x
 End Script
 
+' 设置字体颜色
+' @param r 字体颜色红色通道
+' @param g 字体颜色绿色通道
+' @param b 字体颜色蓝色通道
 Export Script TextboxLite_StoreColor(r As Integer, g As Integer, b As Integer)
     __color_cache_r = r
     __color_cache_g = g
     __color_cache_b = b
 End Script
 
+' 清除所有小对话框
 Export Script TextboxLite_Clear()
     Do While __releaseLast() <> 0
     Loop
 End Script
 
+' 新增小对话框
+' @param content 对话框内容 (已格式化文本)
+' @return 是否成功新增
 Export Script TextboxLite_Submit(content As String, Return Integer)
     If Len(__bubbleAllocateQueue_s) >= 8 Then
         Call __releaseLast()
@@ -500,8 +530,8 @@ Export Script TextboxLite_Submit(content As String, Return Integer)
             __box_tempIE = __readInt_char(__ret_s, 25) * __anchor_cache_y ' anchor offset y
             __box_tempID = __readInt_2Char(__ret_s, 1) - __box_tempID ' posX
             __box_tempIE = __readInt_2Char(__ret_s, 3) - __box_tempIE ' posY
-            __box_tempIF = __readInt_2Char(__ret_s, 21) + __bmpIdStart ' start bmp id
-            __box_tempIG = __readInt_2Char(__ret_s, 23) + __bmpIdStart ' end bmp id
+            __box_tempIF = __readInt_2Char(__ret_s, 21) + __lBox_bmpIdStart ' start bmp id
+            __box_tempIG = __readInt_2Char(__ret_s, 23) + __lBox_bmpIdStart ' end bmp id
             For __box_tempIH = __box_tempIF To __box_tempIG Step 1
                 Bitmap(__box_tempIH).hide = 1
                 Bitmap(__box_tempIH).destx = Bitmap(__box_tempIH).destx + __box_tempID
@@ -571,7 +601,7 @@ Script __refresh_txtBoxLite(id As Long)
             __box_tempIE = 0
             __box_tempIF = 0
         End If
-        For __box_tempII = __box_tempIG + __bmpIdStart To __box_tempIH + __bmpIdStart Step 1
+        For __box_tempII = __box_tempIG + __lBox_bmpIdStart To __box_tempIH + __lBox_bmpIdStart Step 1
             Bitmap(__box_tempII).hide = 0
             Bitmap(__box_tempII).destx = Bitmap(__box_tempII).destx + __box_tempIE
             Bitmap(__box_tempII).desty = Bitmap(__box_tempII).desty + __box_tempIF + __box_tempIJ
@@ -580,7 +610,7 @@ Script __refresh_txtBoxLite(id As Long)
     Else
         __box_tempIG = __readInt_2Char(__ret_s, 21) ' begin
         __box_tempIH = __readInt_2Char(__ret_s, 23) ' end
-        For __box_tempII = __box_tempIG + __bmpIdStart To __box_tempIH + __bmpIdStart Step 1
+        For __box_tempII = __box_tempIG + __lBox_bmpIdStart To __box_tempIH + __lBox_bmpIdStart Step 1
             Bitmap(__box_tempII).hide = 0
         Next
     End If

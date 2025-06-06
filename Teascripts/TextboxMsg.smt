@@ -1,3 +1,4 @@
+' ----------------------------------------------------- config
 Dim __msg_bmpIdStart As Long = 10000       ' bmp 起始 id, 该类一共需要申请 10 个 bmp, +1~9 为九宫格, +0 为头像
 Dim __msg_defaultZpos As Double = 0.51     ' 默认 zpos
 Dim __msg_9Grid_npcId As Long = 2          ' 九宫格素材 npc id
@@ -216,10 +217,6 @@ Export Script Textbox_Submit(txt As String, animStartFac As Double)
         animStartFac = 1
     End If
     __animFac = animStartFac
-
-    If __msg_sW <= 0 Then
-        __msg_sW = 1
-    End If
 End Script
 
 Export Script Textbox_SetAvatarImm(npcId As Long, srcX As Integer, srcY As Integer, srcW As Integer, srcH As Integer)
@@ -340,7 +337,8 @@ Script __textbox_inner_refreshBg(Return Integer)
         End If
 
         __box_tempIC = __msg_pX
-        __box_tempIB = __msg_pY
+        __box_tempID = __msg_pY
+        __box_tempIB = __msg_sH
         __box_tempIA = __msg_sW
         If __msg_sH >= TextboxLowLevel_GetHeight() + __msg_9Grid_b + __msg_9Grid_d Then
             __box_tempIB = __msg_sH

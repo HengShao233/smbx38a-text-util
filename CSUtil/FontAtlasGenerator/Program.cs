@@ -6,7 +6,7 @@ namespace FontAtlasGenerator;
 
 internal static class Program
 {
-    private const string Version = "1.6.0";
+    private const string Version = "2.0.0";
 
     private struct Context
     {

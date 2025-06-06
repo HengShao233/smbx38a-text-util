@@ -35,20 +35,20 @@
 ' -------------------------------------------------------------------
 ' -------------------------------------------------------------------
 ' -------------------------------------------------------------------
-' ----------------------------------------------------- attribute var
+' ----------------------------------------------------- config
 ' MAX_VAL = 10000, MIN_VAL = -10000
-Dim __npc As Long = 1
-Dim __bmpStart As Long = 1000
-Dim __bmpZpos As Double = 0.5
+Dim __box_npc As Long = 1            ' 文本贴图集
+Dim __box_bmpStart As Long = 1000    ' 文本 bmp 起始 id
+Dim __box_bmpZpos As Double = 0.5    ' 文本 zpos
 
-Dim __wid As Integer = 600 ' -1 ~ 10000
-Dim __hei As Integer = -1 ' -1 ~ 10000
-Dim __posX As Integer = 100 ' -10000 ~ 10000
-Dim __posY As Integer = 100 ' -10000 ~ 10000
-Dim __size As Integer = 24 ' 0 ~ 10000
-Dim __charSpacing As Integer = 0 ' -10000 ~ 10000
-Dim __lineSpacing As Integer = 2 ' -10000 ~ 10000
-Dim __alignType As Integer = 0 ' default-left | 1-right | 2-mid
+Dim __box_wid As Integer = 600       ' 文本框宽度限制, -1 为无限制 [-1, 10000]
+Dim __box_hei As Integer = -1        ' 文本框高度限制, -1 为无限制 [-1, 10000]
+Dim __box_posX As Integer = 100      ' 文本框位置 (屏幕坐标) [-10000, 10000]
+Dim __box_posY As Integer = 100      ' 文本框位置 (屏幕坐标) [-10000, 10000]
+Dim __box_size As Integer = 24       ' 文本基础大小 [0, 10000]
+Dim __box_charSpacing As Integer = 0 ' 字符间距 [-10000, 10000]
+Dim __box_lineSpacing As Integer = 2 ' 行距 [-10000, 10000]
+Dim __box_alignType As Integer = 0   ' 对齐方式 default-left | 1-right | 2-mid
 
 ' ----------------------------------------------------- render var
 Dim __s As String = ""
@@ -69,8 +69,10 @@ Dim __endLineSeek As Integer = 1
 Dim __realLineHeight As Integer = 0
 Dim __realCharSpacing As Double = 0
 
-Dim __animTimestamp As Long = 0
+Dim __timestamp As Long = 0
 Dim __isInDrawToSeek As Integer = 0
+
+Dim __eventInfo As String = ""
 
 ' ----------------------------------------------------- state var
 Dim __shakeChars As String = 0
@@ -207,6 +209,25 @@ Script __txtBox_SetupFlag(flag As String, Return Integer)
         Return 0
     End If
 
+    ' $
+    If __box_tempSB = "$" Then
+        If __box_tempIE > 1 And __isInDrawToSeek = 0 Then
+            __eventInfo = ""
+            For __box_tempIH = 2 To __box_tempIE Step 1
+                __box_tempSB = Mid(flag, __box_tempIH, 1)
+                If __box_tempSB = ":" Or __box_tempIH = __box_tempIE Then
+                    __eventInfo = Mid(flag, __box_tempIH + 1, __box_tempIE - __box_tempIH)
+                    __box_tempSB = Mid(flag, 2, __box_tempIH - 2)
+                    Exit For
+                End If
+            Next
+            If __box_tempSB <> "" Then
+                Call EXEScript(__box_tempSB)
+            End If
+        End If
+        Return 0
+    End If
+
     ' 下面是四个字符的 flag
     If __box_tempIE < 4 Then
         Return 0
@@ -322,8 +343,8 @@ End Script
 Script __txtBox_PreProcessingLine()
     __box_tempIB = 0 ' widCnt
     __box_tempID = __sizeOffset ' sizeOffset
-    __box_tempIF = __lineSpacing + __size ' maxHeight
-    __realCharSpacing = __charSpacing
+    __box_tempIF = __box_lineSpacing + __box_size ' maxHeight
+    __realCharSpacing = __box_charSpacing
     __box_tempIL = __exSizeX ' exSizeX
     __box_tempIM = __exSizeY ' exSizeY
     For __box_tempIA = __seek To __len Step 1
@@ -385,9 +406,9 @@ Script __txtBox_PreProcessingLine()
             End If
             Continue
         End If
-        __box_tempDA = __txtBox_Max(__box_tempID + __size, 0.0)
-        __box_tempIG = __box_tempIB + (__txtBox_GetWidth(__box_tempIC) + __charSpacing) * (__box_tempDA / TXT_GetCharSize()) + __box_tempIL * 2
-        If __wid > 0 And __box_tempIG > __wid Then
+        __box_tempDA = __txtBox_Max(__box_tempID + __box_size, 0.0)
+        __box_tempIG = __box_tempIB + (__txtBox_GetWidth(__box_tempIC) + __box_charSpacing) * (__box_tempDA / TXT_GetCharSize()) + __box_tempIL * 2
+        If __box_wid > 0 And __box_tempIG > __box_wid Then
             Exit For
         End If
         __box_tempIB = __box_tempIG
@@ -395,16 +416,16 @@ Script __txtBox_PreProcessingLine()
             __box_tempIF = __box_tempDA + __box_tempIM
         End If
     Next
-    Select Case __alignType
+    Select Case __box_alignType
         Case 1
-            __posSeekX = __posX + __wid - __box_tempIB
+            __posSeekX = __box_posX + __box_wid - __box_tempIB
         Case 2
-            __posSeekX = __posX + (__wid - __box_tempIB) / 2
+            __posSeekX = __box_posX + (__box_wid - __box_tempIB) / 2
         Case Else
-            __posSeekX = __posX
+            __posSeekX = __box_posX
     End Select
     __realLineHeight = __box_tempIF
-    __posSeekY += __realLineHeight + __lineSpacing
+    __posSeekY += __realLineHeight + __box_lineSpacing
     __lineEnd = __box_tempIA - 1
 End Script
 
@@ -446,7 +467,7 @@ End Script
 
 Script __txtBox_NewBmp()
     For __box_tempIA = 1 To 10 Step 1
-        Call BMPCreate(__box_tempIA + __currBmpCnt + __bmpStart, __npc, 1, 0,     0, 0, 0, 0,     0, 0, 0, 0,     0, 0,     0, -1)
+        Call BMPCreate(__box_tempIA + __currBmpCnt + __box_bmpStart, __box_npc, 1, 0,     0, 0, 0, 0,     0, 0, 0, 0,     0, 0,     0, -1)
     Next
     __currBmpCnt += 10
 End Script
@@ -456,7 +477,7 @@ Script __txtBox_HideBmp()
     __swingChars = ""
     __shakeOrSwing = 0
     For __box_tempIA = 1 To __currBmpCnt Step 1
-        Bitmap(__box_tempIA + __bmpStart).hide = 1
+        Bitmap(__box_tempIA + __box_bmpStart).hide = 1
     Next
     __currUsedBmpCnt = 0
 End Script
@@ -466,7 +487,7 @@ Script __txtBox_ClearBmp()
     __swingChars = ""
     __shakeOrSwing = 0
     For __box_tempIA = 1 To __currBmpCnt Step 1
-        Call BErase(2, __box_tempIA + __bmpStart)
+        Call BErase(2, __box_tempIA + __box_bmpStart)
     Next
     __currBmpCnt = 0
     __currUsedBmpCnt = 0
@@ -490,9 +511,9 @@ Script __txtBox_UpdateShakeAnim(Return Integer)
         __box_tempIE = AscW(Mid(__shakeChars, __box_tempIC - 2, 1)) - 10000 ' x
         __box_tempIF = AscW(Mid(__shakeChars, __box_tempIC - 1, 1)) - 10000 ' y
         __box_tempIG = AscW(Mid(__shakeChars, __box_tempIC - 0, 1)) - 10000 ' p
-        __box_tempID += __bmpStart
-        Bitmap(__box_tempID).destx = __box_tempIE + Cos(__animTimestamp * 2 + __txtBox_Rnd(__box_tempIB - __animTimestamp)) * __box_tempIG * 0.5
-        Bitmap(__box_tempID).desty = __box_tempIF + Sin(__animTimestamp * 2 + __txtBox_Rnd(__box_tempIB + __animTimestamp)) * __box_tempIG * 0.5
+        __box_tempID += __box_bmpStart
+        Bitmap(__box_tempID).destx = __box_tempIE + Cos(__timestamp * 2 + __txtBox_Rnd(__box_tempIB - __timestamp)) * __box_tempIG * 0.5
+        Bitmap(__box_tempID).desty = __box_tempIF + Sin(__timestamp * 2 + __txtBox_Rnd(__box_tempIB + __timestamp)) * __box_tempIG * 0.5
     Next
     Return 0
 End Script
@@ -515,9 +536,9 @@ Script __txtBox_UpdateSwingAnim(Return Integer)
         __box_tempIE = AscW(Mid(__swingChars, __box_tempIC - 2, 1)) - 10000 ' x
         __box_tempIF = AscW(Mid(__swingChars, __box_tempIC - 1, 1)) - 10000 ' y
         __box_tempIG = AscW(Mid(__swingChars, __box_tempIC - 0, 1)) - 10000 ' p
-        __box_tempID += __bmpStart
-        Bitmap(__box_tempID).destx = __box_tempIE + Cos(__animTimestamp * 0.1 + __box_tempIB * 0.4) * __box_tempIG
-        Bitmap(__box_tempID).desty = __box_tempIF + Sin(__animTimestamp * 0.1 + __box_tempIB * 0.4) * __box_tempIG
+        __box_tempID += __box_bmpStart
+        Bitmap(__box_tempID).destx = __box_tempIE + Cos(__timestamp * 0.1 + __box_tempIB * 0.4) * __box_tempIG
+        Bitmap(__box_tempID).desty = __box_tempIF + Sin(__timestamp * 0.1 + __box_tempIB * 0.4) * __box_tempIG
     Next
     Return 0
 End Script
@@ -529,15 +550,15 @@ Script __txtBox_InternalForceDrawChar(charCode As Integer, Return Integer)
     End If
 
     __currUsedBmpCnt += 1
-    __box_tempIA = __currUsedBmpCnt + __bmpStart
+    __box_tempIA = __currUsedBmpCnt + __box_bmpStart
     Bitmap(__box_tempIA).hide = 0
-    Bitmap(__box_tempIA).zpos = __bmpZpos
+    Bitmap(__box_tempIA).zpos = __box_bmpZpos
     Bitmap(__box_tempIA).scrwidth = __txtBox_GetWidth(__box_tempIB)
     Bitmap(__box_tempIA).scrheight = TXT_GetCharSize()
     Bitmap(__box_tempIA).scrx = TXT_GetDestX(__box_tempIB)
     Bitmap(__box_tempIA).scry = TXT_GetDestY(__box_tempIB)
-    Bitmap(__box_tempIA).scalex = __txtBox_Max(__sizeOffset + __size, 0.0) / TXT_GetCharSize()
-    Bitmap(__box_tempIA).scaley = __txtBox_Max(__sizeOffset + __size, 0.0) / TXT_GetCharSize()
+    Bitmap(__box_tempIA).scalex = __txtBox_Max(__sizeOffset + __box_size, 0.0) / TXT_GetCharSize()
+    Bitmap(__box_tempIA).scaley = __txtBox_Max(__sizeOffset + __box_size, 0.0) / TXT_GetCharSize()
 
     If __colB >= 0 And __colR >= 0 And __colG >= 0 Then
         Bitmap(__box_tempIA).forecolor_r = __colR
@@ -552,7 +573,7 @@ Script __txtBox_InternalForceDrawChar(charCode As Integer, Return Integer)
     End If
 
     Bitmap(__box_tempIA).destx = __posSeekX + __exSizeX
-    Bitmap(__box_tempIA).desty = __posSeekY - __txtBox_Max(__sizeOffset + __size, 0.0)
+    Bitmap(__box_tempIA).desty = __posSeekY - __txtBox_Max(__sizeOffset + __box_size, 0.0)
 
     If __shake <> 0 Then
         Call __txtBox_PushShake(__currUsedBmpCnt, Bitmap(__box_tempIA).destx, Bitmap(__box_tempIA).desty, __shake)
@@ -561,7 +582,7 @@ Script __txtBox_InternalForceDrawChar(charCode As Integer, Return Integer)
         Call __txtBox_PushSwing(__currUsedBmpCnt, Bitmap(__box_tempIA).destx, Bitmap(__box_tempIA).desty, __swing)
     End If
 
-    Return __txtBox_Max(__realCharSpacing + __txtBox_GetWidth(__box_tempIB) * __txtBox_Max(__sizeOffset + __size, 0.0) / TXT_GetCharSize(), 0.0) + __exSizeX * 2
+    Return __txtBox_Max(__realCharSpacing + __txtBox_GetWidth(__box_tempIB) * __txtBox_Max(__sizeOffset + __box_size, 0.0) / TXT_GetCharSize(), 0.0) + __exSizeX * 2
 End Script
 
 Script __txtBox_InternalForceDrawNext(Return Integer)
@@ -587,8 +608,8 @@ Script __txtBox_InternalForceDrawNext(Return Integer)
         __seek += 1
         If __page > 0 Then
             Call __txtBox_HideBmp()
-            __posSeekX = __posX
-            __posSeekY = __posY
+            __posSeekX = __box_posX
+            __posSeekY = __box_posY
             __page = 0
             Call __txtBox_PreProcessingLine()
             Return 0
@@ -607,16 +628,16 @@ Script __txtBox_InternalForceDrawNext(Return Integer)
 End Script
 
 Script __txtBox_ResetState()
-    __posSeekX = __posX
-    __posSeekY = __posY
+    __posSeekX = __box_posX
+    __posSeekY = __box_posY
     __lineEnd = 0
     __seek = 0
     __seekDelay = 0
 
     __endLineSeek = 0
     __isInDrawToSeek = 0
-    __realCharSpacing = __charSpacing
-    __realLineHeight = __lineSpacing + __size
+    __realCharSpacing = __box_charSpacing
+    __realLineHeight = __box_lineSpacing + __box_size
 
     __shakeChars = ""
     __swingChars = ""
@@ -637,16 +658,16 @@ Script __txtBox_ResetState()
 End Script
 
 Script __txtBox_ResetStateForDrawToSeek()
-    __posSeekX = __posX
-    __posSeekY = __posY
+    __posSeekX = __box_posX
+    __posSeekY = __box_posY
     __lineEnd = 0
     __seek = 0
     __seekDelay = 0
 
     __endLineSeek = 0
     __isInDrawToSeek = 0
-    __realCharSpacing = __charSpacing
-    __realLineHeight = __lineSpacing + __size
+    __realCharSpacing = __box_charSpacing
+    __realLineHeight = __box_lineSpacing + __box_size
 
     __shakeChars = ""
     __swingChars = ""
@@ -689,7 +710,7 @@ End Script
 ' 无视所有阻拦绘制到目标探针
 ' @param seek: 绘制目标(若要绘制到结尾则 seek 可以填 10000)
 Export Script TextboxLowLevel_DrawToSeek(seek As Long, Return Integer)
-    If __wid = 0 Or __len = 0 Or __hei = 0 Then
+    If __box_wid = 0 Or __len = 0 Or __box_hei = 0 Then
         __wait = 0
         Return 0
     End If
@@ -713,7 +734,7 @@ End Script
 
 ' 绘制下一个字符
 Export Script TextboxLowLevel_DrawNext(Return Integer)
-    If __wid = 0 Or __len = 0 Or __hei = 0 Then
+    If __box_wid = 0 Or __len = 0 Or __box_hei = 0 Then
         Return 0
     End If
 
@@ -749,7 +770,7 @@ End Script
 
 ' 绘制到下一个 wait flag 处
 Export Script Textbox_DrawToWait(Return Integer)
-    If __wid = 0 Or __len = 0 Or __hei = 0 Then
+    If __box_wid = 0 Or __len = 0 Or __box_hei = 0 Then
         Return 0
     End If
 
@@ -760,12 +781,17 @@ Export Script Textbox_DrawToWait(Return Integer)
     Return 0
 End Script
 
+' 获取事件信息
+Export Script Textbox_GetEventInfo(Return String)
+    Return __eventInfo & ""
+End Script
+
 ' ----------------------------------------------------- atribute setter
 ' 设置字符贴图集 npc
 ' @param id: 字符贴图集 npc id
 Export Script TextboxLowLevel_SetNpcSrc(id As Long)
-    If id <> __npc Then
-        __npc = id
+    If id <> __box_npc Then
+        __box_npc = id
         Call TextboxLowLevel_DrawToSeek(__seek)
     End If
 End Script
@@ -773,8 +799,8 @@ End Script
 ' 设置字符 zpos
 ' @param zpos: 字符 zpos
 Export Script TextboxLowLevel_SetZpos(zpos As Double)
-    If Abs(zpos - __bmpZpos) > 0.0000001  Then
-        __bmpZpos = zpos
+    If Abs(zpos - __box_bmpZpos) > 0.0000001  Then
+        __box_bmpZpos = zpos
         Call TextboxLowLevel_DrawToSeek(__seek)
     End If
 End Script
@@ -782,14 +808,14 @@ End Script
 ' 设置文本框宽度
 ' @param wid: 文本框宽度(没有宽度限制可填 -1)
 Export Script TextboxLowLevel_SetWidth(wid As Long)
-    If wid <> __wid Then
-        If __wid <> 0 And wid = 0 Then
+    If wid <> __box_wid Then
+        If __box_wid <> 0 And wid = 0 Then
             Call __txtBox_HideBmp()
         End If
         If wid > 10000 Or wid < 0 Then
             wid = -1
         End If
-        __wid = wid
+        __box_wid = wid
         Call TextboxLowLevel_DrawToSeek(__seek)
     End If
 End Script
@@ -797,14 +823,14 @@ End Script
 ' 设置文本框高度
 ' @param hei: 文本框高度(没有高度限制可填 -1)
 Export Script TextboxLowLevel_SetHeight(hei As Integer)
-    If hei <> __hei Then
-        If __hei <> 0 And hei = 0 Then
+    If hei <> __box_hei Then
+        If __box_hei <> 0 And hei = 0 Then
             Call __txtBox_HideBmp()
         End If
         If hei > 10000 Or hei < 0 Then
             hei = -1
         End If
-        __hei = hei
+        __box_hei = hei
         Call TextboxLowLevel_DrawToSeek(__seek)
     End If
 End Script
@@ -812,26 +838,26 @@ End Script
 ' 获得文本框宽度
 ' @return 文本框宽
 Export Script TextboxLowLevel_GetWidth(Return Integer)
-    If __wid < 0 Or __wid = 10000 Then
-        Return __posSeekX - __posX
+    If __box_wid < 0 Or __box_wid = 10000 Then
+        Return __posSeekX - __box_posX
     End If
-    Return __wid
+    Return __box_wid
 End Script
 
 ' 获得文本框高度
 ' @return 文本框高
 Export Script TextboxLowLevel_GetHeight(Return Integer)
-    If __hei < 0 Or __hei = 10000 Then
-        Return __posSeekY - __posY
+    If __box_hei < 0 Or __box_hei = 10000 Then
+        Return __posSeekY - __box_posY
     End If
-    Return __hei
+    Return __box_hei
 End Script
 
 ' 设置文本框坐标(左上角点)
 ' @param x: x 坐标值
 Export Script TextboxLowLevel_SetPosX(x As Integer)
-    If x <> __posX Then
-        __posX = x
+    If x <> __box_posX Then
+        __box_posX = x
         Call TextboxLowLevel_DrawToSeek(__seek)
     End If
 End Script
@@ -839,8 +865,8 @@ End Script
 ' 设置文本框坐标(左上角点)
 ' @param y: y 坐标值
 Export Script TextboxLowLevel_SetPosY(y As Integer)
-    If y <> __posY Then
-        __posY = y
+    If y <> __box_posY Then
+        __box_posY = y
         Call TextboxLowLevel_DrawToSeek(__seek)
     End If
 End Script
@@ -848,23 +874,23 @@ End Script
 ' 获得文本框坐标(左上角点)
 ' @return x 坐标值
 Export Script TextboxLowLevel_GetPosX(Return Integer)
-    Return __posX
+    Return __box_posX
 End Script
 
 ' 获得文本框坐标(左上角点)
 ' @return y 坐标值
 Export Script TextboxLowLevel_GetPosY(Return Integer)
-    Return __posY
+    Return __box_posY
 End Script
 
 ' 设置文本字符大小(像素数)
 ' @param size: 字符大小
 Export Script TextboxLowLevel_SetSize(size As Integer)
-    If size <> __size Then
-        If __size <> 0 And size = 0 Then
+    If size <> __box_size Then
+        If __box_size <> 0 And size = 0 Then
             Call __txtBox_HideBmp()
         End If
-        __size = size
+        __box_size = size
         Call TextboxLowLevel_DrawToSeek(__seek)
     End If
 End Script
@@ -872,8 +898,8 @@ End Script
 ' 设置文本字符间距
 ' @param spc: 字符间距(要求大于零)
 Export Script TextboxLowLevel_SetCharSpacing(spc As Integer)
-    If spc <> __charSpacing Then
-        __charSpacing = __txtBox_Max(spc, 0.0)
+    If spc <> __box_charSpacing Then
+        __box_charSpacing = __txtBox_Max(spc, 0.0)
         Call TextboxLowLevel_DrawToSeek(__seek)
     End If
 End Script
@@ -881,8 +907,8 @@ End Script
 ' 设置文本行距
 ' @param spc: 行距(要求大于零)
 Export Script TextboxLowLevel_SetLineSpacing(spc As Integer)
-    If spc <> __lineSpacing Then
-        __lineSpacing = __txtBox_Max(spc, 0.0)
+    If spc <> __box_lineSpacing Then
+        __box_lineSpacing = __txtBox_Max(spc, 0.0)
         Call TextboxLowLevel_DrawToSeek(__seek)
     End If
 End Script
@@ -890,9 +916,9 @@ End Script
 ' 设置字符 bitmap 申请的起始 id
 ' @param id: 起始 id
 Export Script TextboxLowLevel_SetBmpIdStart(id As Integer)
-    If id <> __bmpStart Then
+    If id <> __box_bmpStart Then
         Call __txtBox_ClearBmp()
-        __bmpStart = id
+        __box_bmpStart = id
         Call TextboxLowLevel_DrawToSeek(__seek)
     End If
 End Script
@@ -900,8 +926,8 @@ End Script
 ' 设置文本框对其方案
 ' @param typ: 0-左对齐 | 1-右对齐 | 2-居中对齐
 Export Script TextboxLowLevel_SetAlign(typ As Integer)
-    If typ <> __alignType Then
-        __alignType = typ
+    If typ <> __box_alignType Then
+        __box_alignType = typ
         Call TextboxLowLevel_DrawToSeek(__seek)
     End If
 End Script
@@ -909,11 +935,11 @@ End Script
 ' ----------------------------------------------------- main loop
 Do
     If __shakeOrSwing = 0 Then
-        __animTimestamp = 0
+        __timestamp = 0
         GoTo EndLoop
     End If
 
-    __animTimestamp += 1
+    __timestamp += 1
     Call __txtBox_UpdateShakeAnim()
     Call __txtBox_UpdateSwingAnim()
 
