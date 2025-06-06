@@ -1069,7 +1069,7 @@ Export Script Textbox_Submit(txt As String, animStartFac As Double)
     End If
 
     ' 创建文本框
-    If __isCreated = 0 Then
+    If __isCreated = 0 Or (animStartFac > -0.001 And animStartFac < 0.001) Then
         __msg_pX = __msg_pX_param_cache
         __msg_pY = __msg_pY_param_cache
         __msg_sW = __msg_sW_param_cache
