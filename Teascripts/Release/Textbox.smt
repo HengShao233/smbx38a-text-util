@@ -1145,7 +1145,10 @@ Export Script Textbox_Submit(txt As String, animStartFac As Double)
     __animFac = animStartFac
 End Script
 
-Export Script Textbox_SetAvatarImm(npcId As Long, srcX As Integer, srcY As Integer, srcW As Integer, srcH As Integer)
+Export Script Textbox_SetAvatarImm(npcId As Long, srcX As Integer, srcY As Integer, srcW As Integer, srcH As Integer, Return Integer)
+    If __isCreated = 0 Then
+        Return 0
+    End If
     __msg_avatar_npcId = npcId
     __msg_avatar_srcX = srcX
     __msg_avatar_srcY = srcY
@@ -1163,6 +1166,7 @@ Export Script Textbox_SetAvatarImm(npcId As Long, srcX As Integer, srcY As Integ
         Bitmap(__msg_bmpIdStart).scrwidth = __msg_avatar_srcW
         Bitmap(__msg_bmpIdStart).scrheight = __msg_avatar_srcH
     End If
+    Return 1
 End Script
 
 ' 创建文本框
