@@ -1,4 +1,4 @@
-#### 字体图集快捷生成工具 v1.7
+#### 字体图集快捷生成工具 v2.0.0
 
 该工具可用于快速建立字体图集：
 
@@ -11,9 +11,6 @@
   - Flag 的定义形式形如 `\{xxx}`，其中，xxx 为 flag 的正文
   - Flag 只能为英文字母，且不能为数字符号
   - 纯数字的花括号定义如 `\{4321}` ，会被解释成一个 code 为 4321 的字符，而不是 flag
-  - 在使用 TXT_GetNext() 遍历字符串时，遇到 Flag 字符会跳过其第二位
-
-
 
 
 配置文件格式如下：
@@ -65,7 +62,7 @@
 | SingleBitPerPixelGridFit | 1    | Each character is drawn using its glyph bitmap. Hinting is used to improve character appearance on stems and curvature. |
 | SystemDefault            | 0    | Each character is drawn using its glyph bitmap, with the system default rendering hint. The text will be drawn using whatever font-smoothing settings the user has selected for the system. |
 
-> 具体用例见 ./test.lvl
+> 具体用例见 ../Text/test.lvl
 
 
 
