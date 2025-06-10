@@ -50,14 +50,18 @@ Dim __box_alignType As Integer = 0                    ' 对齐方式 default-lef
 
 ' ----------------------------------------------------- event
 
-Dim __eventScriptName As String = ""
-Dim __eventValue As String = ""
-Dim __eventState As Long = 0
+Dim __box_eventScriptName As String = ""              ' 事件监听脚本名 (为空时不派发事件)
 
+Dim __eventValue As String = "" ' 事件值
+Dim __eventState As Long = 0    ' 事件类型
+
+' 播放下一个字符 (每播放一组可见字符派发一次该事件)
+' value 参数: 使用 AscW(TextboxEvent_GetValue()) 可获得具体步进了几个字符 (其中包含 flag 字符)
 Export Script TextboxEvent_OnNext(Return Long)
     Return __eventState And 1
 End Script
 
+' 切换头像或对话框事件 (在提交新对话后, 当动画播放到新对话框展开前会触发一次该事件)
 Export Script TextboxEvent_OnChangeBox(Return Long)
     Return __eventState And 2
 End Script
@@ -1423,10 +1427,11 @@ Script __textbox_inner_refreshBg(Return Integer)
                 Return 0
             End If
 
-            __eventState = __eventState Or 2
             Call __textbox_inner_setAvatar()
-            If __eventScriptName <> "" Then
-                Call EXEScript(__eventScriptName)
+            If __box_eventScriptName <> "" Then
+                __eventState = 2
+                __eventValue = ""
+                Call EXEScript(__box_eventScriptName)
             End If
         End If
         __box_tempIA = Abs(__box_tempIA)
@@ -2309,10 +2314,10 @@ Flag_EndRichText:
     If __animFac < -2 Then
         __box_tempIN = __seek
         Call TextBoxLowLevel_DrawNext()
-        If __seek > __box_tempIN And __eventScriptName <> "" Then
+        If __seek > __box_tempIN And __box_eventScriptName <> "" Then
+            __eventState = 1
             __eventValue = ChrW(__seek - __box_tempIN)
-            __eventState = __eventState Or 1
-            Call ExeScript(__eventScriptName)
+            Call ExeScript(__box_eventScriptName)
         End If
     End If
 
