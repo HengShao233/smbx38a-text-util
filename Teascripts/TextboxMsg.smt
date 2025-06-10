@@ -10,6 +10,21 @@ Dim __msg_9Grid_a As Long = 07             '    ├┼─────┼─┤
 Dim __msg_9Grid_b As Long = 07             '    ││     │ │ h
 Dim __msg_9Grid_c As Long = 07             '    ├┼─────┼─┤
 Dim __msg_9Grid_d As Long = 07             '    └┴─────┴─┘ d ---- 九宫格六个参数
+Dim __msg_animSpeed As Double = 1 / 12     ' 动画参数增量
+
+' ------------------------------------------- event
+
+Dim __eventScriptName As String = ""
+Dim __eventValue As String = ""
+Dim __eventState As Long = 0
+
+Export Script TextboxEvent_OnNext()
+    Return __eventState And 1
+End Script
+
+Export Script TextboxEvent_OnChangeBox()
+    Return __eventState And 2
+End Script
 
 ' ------------------------------------------- var
 ' ---- text box bg
@@ -23,36 +38,69 @@ Dim __msg_from_pY As Integer = 0
 Dim __msg_from_sW As Integer = 0
 Dim __msg_from_sH As Integer = 0
 
+Dim __msg_old_pX As Integer = 0
+Dim __msg_old_pY As Integer = 0
+Dim __msg_old_sW As Integer = 0
+Dim __msg_old_sH As Integer = 0
+
+Dim __msg_old_from_pX As Integer = 0
+Dim __msg_old_from_pY As Integer = 0
+Dim __msg_old_from_sW As Integer = 0
+Dim __msg_old_from_sH As Integer = 0
+
 ' ---- avatar
 Dim __msg_avatar_pX As Integer = 0
 Dim __msg_avatar_pY As Integer = 0
 Dim __msg_avatar_sW As Integer = 0
 Dim __msg_avatar_sH As Integer = 0
-Dim __msg_avatar_npcId As Long = 0
-Dim __msg_avatar_srcX As Integer = 0
-Dim __msg_avatar_srcY As Integer = 0
-Dim __msg_avatar_srcW As Integer = 0
-Dim __msg_avatar_srcH As Integer = 0
 
 Dim __msg_avatar_from_pX As Integer = 0
 Dim __msg_avatar_from_pY As Integer = 0
 Dim __msg_avatar_from_sW As Integer = 0
 Dim __msg_avatar_from_sH As Integer = 0
 
+Dim __msg_old_avatar_pX As Integer = 0
+Dim __msg_old_avatar_pY As Integer = 0
+Dim __msg_old_avatar_sW As Integer = 0
+Dim __msg_old_avatar_sH As Integer = 0
+
+Dim __msg_old_avatar_from_pX As Integer = 0
+Dim __msg_old_avatar_from_pY As Integer = 0
+Dim __msg_old_avatar_from_sW As Integer = 0
+Dim __msg_old_avatar_from_sH As Integer = 0
+
+Dim __msg_avatar_npcId As Long = 0
+Dim __msg_avatar_srcX As Integer = 0
+Dim __msg_avatar_srcY As Integer = 0
+Dim __msg_avatar_srcW As Integer = 0
+Dim __msg_avatar_srcH As Integer = 0
+
+
 ' anim factor: [0, 1]
+Dim __animFacOffset_msgBox As Double = 0
+Dim __animFacOffset_avatar As Double = 0
 Dim __animFac As Double = -1
-Dim __animSpeed As Double = 1 / 12 ' 动画参数增量
 
 ' ------------------------------------------- params
+Dim __msg_lastHight As Integer = -1
 Dim __msg_pX_param_cache As Integer = 100
 Dim __msg_pY_param_cache As Integer = 100
 Dim __msg_sW_param_cache As Integer = 600
 Dim __msg_sH_param_cache As Integer = 100
+Dim __msg_from_pX_param_cache As Integer = 100
+Dim __msg_from_pY_param_cache As Integer = 100
+Dim __msg_from_sW_param_cache As Integer = 0
+Dim __msg_from_sH_param_cache As Integer = 0
 
 Dim __msg_avatar_pX_param_cache As Integer = 0
 Dim __msg_avatar_pY_param_cache As Integer = 0
 Dim __msg_avatar_sW_param_cache As Integer = 0
 Dim __msg_avatar_sH_param_cache As Integer = 0
+Dim __msg_from_avatar_pX_param_cache As Integer = 0
+Dim __msg_from_avatar_pY_param_cache As Integer = 0
+Dim __msg_from_avatar_sW_param_cache As Integer = 0
+Dim __msg_from_avatar_sH_param_cache As Integer = 0
+
 Dim __msg_avatar_npcId_param_cache As Long = 0
 Dim __msg_avatar_srcX_param_cache As Integer = 0
 Dim __msg_avatar_srcY_param_cache As Integer = 0
@@ -70,14 +118,26 @@ Dim __box_tempDB As Double = 0
 
 Dim __isCreated As Integer = 0
 
-Export Script Textbox_StoreMsgPos(x As Integer, y As Integer)
-    __msg_pX_param_cache = x
-    __msg_pY_param_cache = y
+' 设置动画参数偏移量
+' @param msgBox 对话框的动画参数偏移量
+' @param avatar 头像的动画参数偏移量
+Export Script Textbox_SetAnimFacOffset(msgBox As Double, avatar As Double)
+    __animFacOffset_msgBox = msgBox
+    __animFacOffset_avatar = avatar
 End Script
 
-Export Script Textbox_StoreMsgSize(w As Integer, h As Integer)
+Export Script Textbox_StoreMsgShape(x As Integer, y As Integer, w As Integer, h As Integer)
+    __msg_pX_param_cache = x
+    __msg_pY_param_cache = y
     __msg_sW_param_cache = w
     __msg_sH_param_cache = h
+End Script
+
+Export Script Textbox_StoreMsgFromShape(x As Integer, y As Integer, w As Integer, h As Integer)
+    __msg_from_pX_param_cache = x
+    __msg_from_pY_param_cache = y
+    __msg_from_sW_param_cache = w
+    __msg_from_sH_param_cache = h
 End Script
 
 Export Script Textbox_StoreAvatar(npcId As Long, srcX As Integer, srcY As Integer, srcW As Integer, srcH As Integer)
@@ -88,32 +148,24 @@ Export Script Textbox_StoreAvatar(npcId As Long, srcX As Integer, srcY As Intege
     __msg_avatar_srcH_param_cache = srcH
 End Script
 
-Export Script Textbox_StoreAvatarPos(x As Integer, y As Integer)
+Export Script Textbox_StoreAvatarShape(x As Integer, y As Integer, w As Integer, h As Integer)
     __msg_avatar_pX_param_cache = x
     __msg_avatar_pY_param_cache = y
-End Script
-
-Export Script Textbox_StoreAvatarSize(w As Integer, h As Integer)
     __msg_avatar_sW_param_cache = w
     __msg_avatar_sH_param_cache = h
 End Script
 
+Export Script Textbox_StoreAvatarFromShape(x As Integer, y As Integer, w As Integer, h As Integer)
+    __msg_from_avatar_pX_param_cache = x
+    __msg_from_avatar_pY_param_cache = y
+    __msg_from_avatar_sW_param_cache = w
+    __msg_from_avatar_sH_param_cache = h
+End Script
+
 Export Script Textbox_Submit(txt As String, animStartFac As Double)
     If txt = "" Then
-        Call TextboxLowLevel_SetPosX(0)
-        Call TextboxLowLevel_SetPosY(0)
         Call TextBoxLowLevel_SetWidth(-1)
         Call TextBoxLowLevel_LoadString(txt)
-
-        __msg_sW_param_cache = 0
-        __msg_sH_param_cache = 0
-        __msg_pX_param_cache = __msg_pX
-        __msg_pY_param_cache = __msg_pY
-
-        __msg_avatar_sH_param_cache = 0
-        __msg_avatar_sW_param_cache = 0
-        __msg_avatar_pX_param_cache = __msg_avatar_pX
-        __msg_avatar_pY_param_cache = __msg_avatar_pY
     Else
         Call TextboxLowLevel_SetPosX(__msg_pX_param_cache + __msg_9Grid_a)
         Call TextboxLowLevel_SetPosY(__msg_pY_param_cache + __msg_9Grid_b)
@@ -123,82 +175,62 @@ Export Script Textbox_Submit(txt As String, animStartFac As Double)
 
     ' 创建文本框
     If __isCreated = 0 Then
-        __msg_pX = __msg_pX_param_cache
-        __msg_pY = __msg_pY_param_cache
-        __msg_sW = __msg_sW_param_cache
-        __msg_sH = __msg_sH_param_cache
-        __msg_from_pX = __msg_pX
-        __msg_from_pY = __msg_pY
-        __msg_from_sW = 0
-        __msg_from_sH = 0
-
-        __msg_avatar_pX = __msg_avatar_pX_param_cache
-        __msg_avatar_pY = __msg_avatar_pY_param_cache
-        __msg_avatar_sH = __msg_avatar_sH_param_cache
-        __msg_avatar_sW = __msg_avatar_sW_param_cache
-        __msg_avatar_from_pX = __msg_avatar_pX
-        __msg_avatar_from_pY = __msg_avatar_pY
-        __msg_avatar_from_sH = 0
-        __msg_avatar_from_sW = 0
-        __msg_avatar_npcId = __msg_avatar_npcId_param_cache
-        __msg_avatar_srcX = __msg_avatar_srcX_param_cache
-        __msg_avatar_srcY = __msg_avatar_srcY_param_cache
-        __msg_avatar_srcH = __msg_avatar_srcH_param_cache
-        __msg_avatar_srcW = __msg_avatar_srcW_param_cache
+        If animStartFac < 0 Then
+            animStartFac = 0
+        End If
         Call __textbox_inner_create()
-    Else
-        If animStartFac < -0.01 Then
-            __msg_from_sW = -__msg_sW
-            __msg_from_sH = -__msg_sH
-            __msg_avatar_from_sH = -__msg_avatar_sH
-            __msg_avatar_from_sW = -__msg_avatar_sW
-        Else
-            __msg_from_sW = __msg_sW
-            __msg_from_sH = __msg_sH
-            __msg_avatar_from_sH = __msg_avatar_sH
-            __msg_avatar_from_sW = __msg_avatar_sW
-        End If
-
-        __msg_from_pX = __msg_pX
-        __msg_from_pY = __msg_pY
-        __msg_pX = __msg_pX_param_cache
-        __msg_pY = __msg_pY_param_cache
-        __msg_sW = __msg_sW_param_cache
-        __msg_sH = __msg_sH_param_cache
-
-        If __msg_avatar_sW <= 0 Then
-            __msg_avatar_pX = __msg_avatar_pX_param_cache
-            __msg_avatar_pY = __msg_avatar_pY_param_cache
-            __msg_avatar_sH = __msg_avatar_sH_param_cache
-            __msg_avatar_sW = __msg_avatar_sW_param_cache
-            __msg_avatar_from_pX = __msg_avatar_pX
-            __msg_avatar_from_pY = __msg_avatar_pY
-            __msg_avatar_from_sH = 0
-            __msg_avatar_from_sW = 0
-            __msg_avatar_npcId = __msg_avatar_npcId_param_cache
-            __msg_avatar_srcX = __msg_avatar_srcX_param_cache
-            __msg_avatar_srcY = __msg_avatar_srcY_param_cache
-            __msg_avatar_srcH = __msg_avatar_srcH_param_cache
-            __msg_avatar_srcW = __msg_avatar_srcW_param_cache
-        Else
-            __msg_avatar_from_pX = __msg_avatar_pX
-            __msg_avatar_from_pY = __msg_avatar_pY
-            __msg_avatar_pX = __msg_avatar_pX_param_cache
-            __msg_avatar_pY = __msg_avatar_pY_param_cache
-            __msg_avatar_sH = __msg_avatar_sH_param_cache
-            __msg_avatar_sW = __msg_avatar_sW_param_cache
-            __msg_avatar_npcId = __msg_avatar_npcId_param_cache
-            __msg_avatar_srcX = __msg_avatar_srcX_param_cache
-            __msg_avatar_srcY = __msg_avatar_srcY_param_cache
-            __msg_avatar_srcH = __msg_avatar_srcH_param_cache
-            __msg_avatar_srcW = __msg_avatar_srcW_param_cache
-        End If
     End If
 
+    __msg_old_pX = __msg_pX
+    __msg_old_pY = __msg_pY
+    __msg_old_sH = __msg_sH
+    __msg_old_sW = __msg_sW
+    __msg_old_from_pX = __msg_from_pX
+    __msg_old_from_pY = __msg_from_pY
+    __msg_old_from_sH = __msg_from_sH
+    __msg_old_from_sW = __msg_from_sW
+
+    __msg_old_avatar_pX = __msg_avatar_pX
+    __msg_old_avatar_pY = __msg_avatar_pY
+    __msg_old_avatar_sH = __msg_avatar_sH
+    __msg_old_avatar_sW = __msg_avatar_sW
+    __msg_old_avatar_from_pX = __msg_avatar_from_pX
+    __msg_old_avatar_from_pY = __msg_avatar_from_pY
+    __msg_old_avatar_from_sH = __msg_avatar_from_sH
+    __msg_old_avatar_from_sW = __msg_avatar_from_sW
+
+    __msg_pX = __msg_pX_param_cache
+    __msg_pY = __msg_pY_param_cache
+    __msg_sW = __msg_sW_param_cache
+    __msg_sH = __msg_sH_param_cache
+    __msg_from_pX = __msg_from_pX_param_cache
+    __msg_from_pY = __msg_from_pY_param_cache
+    __msg_from_sW = __msg_from_sW_param_cache
+    __msg_from_sH = __msg_from_sH_param_cache
+
+    __msg_avatar_pX = __msg_avatar_pX_param_cache
+    __msg_avatar_pY = __msg_avatar_pY_param_cache
+    __msg_avatar_sH = __msg_avatar_sH_param_cache
+    __msg_avatar_sW = __msg_avatar_sW_param_cache
+    __msg_avatar_from_pX = __msg_from_avatar_pX_param_cache
+    __msg_avatar_from_pY = __msg_from_avatar_pY_param_cache
+    __msg_avatar_from_sH = __msg_from_avatar_sH_param_cache
+    __msg_avatar_from_sW = __msg_from_avatar_sW_param_cache
+    __msg_avatar_npcId = __msg_avatar_npcId_param_cache
+    __msg_avatar_srcX = __msg_avatar_srcX_param_cache
+    __msg_avatar_srcY = __msg_avatar_srcY_param_cache
+    __msg_avatar_srcH = __msg_avatar_srcH_param_cache
+    __msg_avatar_srcW = __msg_avatar_srcW_param_cache
+
+    ' 重置缓存的参数
     __msg_pX_param_cache = 100
     __msg_pY_param_cache = 100
     __msg_sW_param_cache = 600
     __msg_sH_param_cache = 100
+    __msg_from_pX_param_cache = 100
+    __msg_from_pY_param_cache = 100
+    __msg_from_sW_param_cache = 0
+    __msg_from_sH_param_cache = 0
 
     __msg_avatar_pX_param_cache = 0
     __msg_avatar_pY_param_cache = 0
@@ -209,10 +241,14 @@ Export Script Textbox_Submit(txt As String, animStartFac As Double)
     __msg_avatar_srcY_param_cache = 0
     __msg_avatar_srcW_param_cache = 0
     __msg_avatar_srcH_param_cache = 0
+    __msg_from_avatar_pX_param_cache = 0
+    __msg_from_avatar_pY_param_cache = 0
+    __msg_from_avatar_sW_param_cache = 0
+    __msg_from_avatar_sH_param_cache = 0
 
     ' 阈值
-    If animStartFac < 0 Then
-        animStartFac = 0
+    If animStartFac < -1 Then
+        animStartFac = -1
     ElseIf animStartFac > 1 Then
         animStartFac = 1
     End If
@@ -279,7 +315,7 @@ End Script
 
 ' 设置头像 bmp 参数
 Script __textbox_inner_setAvatar()
-    If __msg_avatar_srcW = 0 Then
+    If __msg_avatar_srcW <= 0 Or __msg_avatar_srcH <= 0 Then
         Bitmap(__msg_bmpIdStart).hide = 1
         Bitmap(__msg_bmpIdStart).scrwidth = 0
     Else
@@ -318,6 +354,11 @@ Script __textbox_inner_cleanBg(Return Integer)
 End Script
 
 Script __textbox_inner_trans(x As Double, Return Double)
+    If x < 0 Then
+        x = 0
+    ElseIf x > 1 Then
+        x = 1
+    End If
     return sin((x - 0.5) * 3.14159265359) * 0.5 + 0.5
 End Script
 
@@ -329,7 +370,7 @@ Script __textbox_inner_refreshBg(Return Integer)
 
     ' anim fac 小于 0.5 时表明当前不在动画中
     ' 不在动画中时只刷 y 轴向的高度
-    If __animFac < -0.5 Then
+    If __animFac < -2 Then
         ' __msg_sW 为 0 时销毁
         If __msg_sW <= 0.00001 Then
             Call __textbox_inner_cleanBg()
@@ -345,35 +386,47 @@ Script __textbox_inner_refreshBg(Return Integer)
         Else
             __box_tempIB = TextboxLowLevel_GetHeight() + __msg_9Grid_b + __msg_9Grid_d
         End If
+
+        If __msg_lastHight = __box_tempIB Then
+            Return 0
+        End If
+        __msg_lastHight = __box_tempIB
     Else
+        __msg_lastHight = -1
         ' 阈值
         If __animFac > 1 Then
             __box_tempDA = 1
-        ElseIf __animFac < 0 Then
-            __box_tempDA = 0
+        ElseIf __animFac < -1 Then
+            __box_tempDA = 1
         Else
-            __box_tempDA = __textbox_inner_trans(__animFac)
+            __box_tempDA = __textbox_inner_trans(abs(__animFac + __animFacOffset_msgBox))
         End If
 
-        __box_tempIC = __msg_from_pX ' real x
-        __box_tempID = __msg_from_pY ' real y
-        __box_tempIE = __msg_avatar_from_pX ' real avatar x
-        __box_tempIF = __msg_avatar_from_pY ' real avatar y
-        __box_tempIA = (1 - __box_tempDA) * __msg_from_sW + __box_tempDA * __msg_sW ' real w
-        __box_tempIB = (1 - __box_tempDA) * __msg_from_sH + __box_tempDA * __msg_sH ' real h
+        ' 计算位置
+        If __animFac < 0 Then
+            __box_tempIC = (1 - __box_tempDA) * __msg_old_from_pX + __box_tempDA * __msg_old_pX ' real x
+            __box_tempID = (1 - __box_tempDA) * __msg_old_from_pY + __box_tempDA * __msg_old_pY ' real y
+            __box_tempIA = (1 - __box_tempDA) * __msg_old_from_sW + __box_tempDA * __msg_old_sW ' real w
+            __box_tempIB = (1 - __box_tempDA) * __msg_old_from_sH + __box_tempDA * __msg_old_sH ' real h
 
-        If __box_tempIA >= 0 And __box_tempIB >= 0 Then
-            ' 如果起点在负数, 则在 0 到 __msg_sW 区间重新计算 fac
-            If __msg_from_sW < -0.01 Then
-                __box_tempDA = Abs(__box_tempIA) / Abs(__msg_sW)
-            End If
-
-            ' 计算位置
+            __box_tempIE = (1 - __box_tempDA) * __msg_old_avatar_from_pX + __box_tempDA * __msg_old_avatar_pX ' real avatar x
+            __box_tempIF = (1 - __box_tempDA) * __msg_old_avatar_from_pY + __box_tempDA * __msg_old_avatar_pY ' real avatar y
+        Else
             __box_tempIC = (1 - __box_tempDA) * __msg_from_pX + __box_tempDA * __msg_pX ' real x
             __box_tempID = (1 - __box_tempDA) * __msg_from_pY + __box_tempDA * __msg_pY ' real y
+            __box_tempIA = (1 - __box_tempDA) * __msg_from_sW + __box_tempDA * __msg_sW ' real w
+            __box_tempIB = (1 - __box_tempDA) * __msg_from_sH + __box_tempDA * __msg_sH ' real h
+
             __box_tempIE = (1 - __box_tempDA) * __msg_avatar_from_pX + __box_tempDA * __msg_avatar_pX ' real avatar x
             __box_tempIF = (1 - __box_tempDA) * __msg_avatar_from_pY + __box_tempDA * __msg_avatar_pY ' real avatar y
+        End If
+
+        If __animFac < 0 And __animFac + __msg_animSpeed >= 0 Then
+            __eventState = __eventState And 2
             Call __textbox_inner_setAvatar()
+            If __eventScriptName <> "" Then
+                Call EXEScript(__eventScriptName)
+            End If
         End If
         __box_tempIA = Abs(__box_tempIA)
         __box_tempIB = Abs(__box_tempIB)
@@ -440,7 +493,7 @@ Script __textbox_inner_refreshBg(Return Integer)
     End If
 
     ' 如果没在动画中, 就只刷文本框 y 轴向的高度
-    If __animFac < -0.5 Then
+    If __animFac < -2 Then
         Return 0
     End If
 
@@ -501,7 +554,7 @@ Script __textbox_inner_refreshBg(Return Integer)
 
     ' 如果 avatar 存在的话
     ' 计算 avatar 位置和大小
-    If Bitmap(__msg_bmpIdStart).scrwidth > 0.001 Then
+    If Bitmap(__msg_bmpIdStart).scrwidth > 0.001 And Bitmap(__msg_bmpIdStart).scrheight > 0.001 Then
         Bitmap(__msg_bmpIdStart).destx = __box_tempIE
         Bitmap(__msg_bmpIdStart).desty = __box_tempIF
 
@@ -509,26 +562,37 @@ Script __textbox_inner_refreshBg(Return Integer)
         ' 阈值
         If __animFac > 1 Then
             __box_tempDA = 1
-        ElseIf __animFac < 0 Then
-            __box_tempDA = 0
+        ElseIf __animFac < -1 Then
+            __box_tempDA = 1
         Else
-            __box_tempDA = __textbox_inner_trans(__animFac)
+            __box_tempDA = __textbox_inner_trans(abs(__animFac + __animFacOffset_avatar))
         End If
-        Bitmap(__msg_bmpIdStart).scalex = Abs((1 - __box_tempDA) * __msg_avatar_from_sW + __box_tempDA * __msg_avatar_sW) / Bitmap(__msg_bmpIdStart).scrwidth
-        Bitmap(__msg_bmpIdStart).scaley = Abs((1 - __box_tempDA) * __msg_avatar_from_sH + __box_tempDA * __msg_avatar_sH) / Bitmap(__msg_bmpIdStart).scrheight
+
+        ' 计算 Size
+        If __animFac < 0 Then
+            __box_tempIA = (1 - __box_tempDA) * __msg_old_avatar_from_sW + __box_tempDA * __msg_old_avatar_sW ' real avatar w
+            __box_tempIB = (1 - __box_tempDA) * __msg_old_avatar_from_sH + __box_tempDA * __msg_old_avatar_sH ' real avatar h
+        Else
+            __box_tempIA = (1 - __box_tempDA) * __msg_avatar_from_sW + __box_tempDA * __msg_avatar_sW ' real avatar w
+            __box_tempIB = (1 - __box_tempDA) * __msg_avatar_from_sH + __box_tempDA * __msg_avatar_sH ' real avatar h
+        End If
+
+        Bitmap(__msg_bmpIdStart).scalex = __box_tempIA / Bitmap(__msg_bmpIdStart).scrwidth
+        Bitmap(__msg_bmpIdStart).scaley = __box_tempIB / Bitmap(__msg_bmpIdStart).scrheight
     End If
 
     ' 动画播放完了
     If __animFac >= 1 Then
-        __animFac = -1
+        __animFac = -4
     End If
-    __animFac += __animSpeed
+    __animFac += __msg_animSpeed
     Return 1
 End Script
 
 Do
+    __eventState = 0
     Call __textbox_inner_refreshBg()
-    If __animFac < -0.5 Then
+    If __animFac < -2 Then
         Call TextBoxLowLevel_DrawNext()
     End If
     Call Sleep(1)
