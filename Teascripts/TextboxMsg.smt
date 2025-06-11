@@ -28,6 +28,16 @@ End Script
 
 ' ------------------------------------------- var
 ' ---- text box bg
+Dim __msg_a As Double = 0
+Dim __msg_from_a As Double = 0
+Dim __msg_old_a As Double = 0
+Dim __msg_old_from_a As Double = 0
+
+Dim __msg_avatar_a As Double = 0
+Dim __msg_from_avatar_a As Double = 0
+Dim __msg_old_avatar_a As Double = 0
+Dim __msg_old_from_avatar_a As Double = 0
+
 Dim __msg_pX As Integer = 0
 Dim __msg_pY As Integer = 0
 Dim __msg_sW As Integer = 0
@@ -37,6 +47,7 @@ Dim __msg_from_pX As Integer = 0
 Dim __msg_from_pY As Integer = 0
 Dim __msg_from_sW As Integer = 0
 Dim __msg_from_sH As Integer = 0
+
 
 Dim __msg_old_pX As Integer = 0
 Dim __msg_old_pY As Integer = 0
@@ -107,12 +118,18 @@ Dim __msg_avatar_srcY_param_cache As Integer = 0
 Dim __msg_avatar_srcW_param_cache As Integer = 0
 Dim __msg_avatar_srcH_param_cache As Integer = 0
 
+Dim __msg_a_param_cache As Double = 1
+Dim __msg_from_a_param_cache As Double = 0
+Dim __msg_avatar_a_param_cache As Double = 1
+Dim __msg_from_avatar_a_param_cache As Double = 0
+
 Dim __box_tempIA As Long = 0
 Dim __box_tempIB As Long = 0
 Dim __box_tempIC As Long = 0
 Dim __box_tempID As Long = 0
 Dim __box_tempIE As Long = 0
 Dim __box_tempIF As Long = 0
+Dim __box_tempIN As Long = 0
 Dim __box_tempDA As Double = 0
 Dim __box_tempDB As Double = 0
 
@@ -124,6 +141,40 @@ Dim __isCreated As Integer = 0
 Export Script Textbox_SetAnimFacOffset(msgBox As Double, avatar As Double)
     __animFacOffset_msgBox = msgBox
     __animFacOffset_avatar = avatar
+End Script
+
+' 直接设置九宫格 npc id (可以用于快速修改头像表情, 没有任何过渡动画, 也不支持改变头像大小)
+' @param npcId 头像的 npc id
+' @param srcX srcX
+' @param srcY srcY
+Export Script Textbox_SetSet9GridNpcIdImm(npcId As Long, srcX As Integer, srcY As Integer, Return Integer)
+    __msg_9Grid_npcId = npcId
+    If __isCreated = 0 Then
+        Return 0
+    End If
+
+    For __box_tempIN = 1 To 9 Step 1
+        Bitmap(__msg_bmpIdStart + __box_tempIN).scrid = __msg_9Grid_npcId
+        Bitmap(__msg_bmpIdStart + __box_tempIN).scrx = srcX
+        Bitmap(__msg_bmpIdStart + __box_tempIN).scry = srcY
+    Next
+    Return 1
+End Script
+
+' 设置对话框透明度
+' @param a 透明度
+' @param aFrom 原透明度
+Export Script Textbox_StoreMsgAlpha(a As Double, aFrom As Double)
+    __msg_a_param_cache = a
+    __msg_from_a_param_cache = aFrom
+End Script
+
+' 设置头像透明度
+' @param a 透明度
+' @param aFrom 原透明度
+Export Script Textbox_StoreAvatarAlpha(a As Double, aFrom As Double)
+    __msg_avatar_a_param_cache = a
+    __msg_from_avatar_a_param_cache = aFrom
 End Script
 
 Export Script Textbox_StoreMsgShape(x As Integer, y As Integer, w As Integer, h As Integer)
@@ -180,6 +231,17 @@ Export Script Textbox_Submit(txt As String, animStartFac As Double)
         End If
         Call __textbox_inner_create()
     End If
+
+    __msg_old_a = __msg_a
+    __msg_old_from_a = __msg_from_a
+    __msg_old_avatar_a = __msg_avatar_a
+    __msg_old_from_avatar_a = __msg_from_avatar_a
+
+    __msg_a = __msg_a_param_cache
+    __msg_from_a = __msg_from_a_param_cache
+    __msg_avatar_a = __msg_avatar_a_param_cache
+    __msg_from_avatar_a = __msg_from_avatar_a_param_cache
+
 
     __msg_old_pX = __msg_pX
     __msg_old_pY = __msg_pY
@@ -245,6 +307,11 @@ Export Script Textbox_Submit(txt As String, animStartFac As Double)
     __msg_from_avatar_pY_param_cache = 0
     __msg_from_avatar_sW_param_cache = 0
     __msg_from_avatar_sH_param_cache = 0
+
+    __msg_a_param_cache = 1
+    __msg_from_a_param_cache = 0
+    __msg_avatar_a_param_cache = 1
+    __msg_from_avatar_a_param_cache = 0
 
     ' 阈值
     If animStartFac < -1 Then
@@ -399,7 +466,11 @@ Script __textbox_inner_refreshBg(Return Integer)
         ElseIf __animFac < -1 Then
             __box_tempDA = 1
         Else
-            __box_tempDA = __textbox_inner_trans(abs(__animFac + __animFacOffset_msgBox))
+            If __animFac >= 0 Then
+                __box_tempDA = __textbox_inner_trans(abs(__animFac + __animFacOffset_msgBox))
+            Else
+                __box_tempDA = __textbox_inner_trans(abs(__animFac))
+            End If
         End If
 
         ' 计算位置
@@ -408,17 +479,13 @@ Script __textbox_inner_refreshBg(Return Integer)
             __box_tempID = (1 - __box_tempDA) * __msg_old_from_pY + __box_tempDA * __msg_old_pY ' real y
             __box_tempIA = (1 - __box_tempDA) * __msg_old_from_sW + __box_tempDA * __msg_old_sW ' real w
             __box_tempIB = (1 - __box_tempDA) * __msg_old_from_sH + __box_tempDA * __msg_old_sH ' real h
-
-            __box_tempIE = (1 - __box_tempDA) * __msg_old_avatar_from_pX + __box_tempDA * __msg_old_avatar_pX ' real avatar x
-            __box_tempIF = (1 - __box_tempDA) * __msg_old_avatar_from_pY + __box_tempDA * __msg_old_avatar_pY ' real avatar y
+            __box_tempDB = (1 - __box_tempDA) * __msg_old_from_a + __box_tempDA * __msg_old_a ' alpha
         Else
             __box_tempIC = (1 - __box_tempDA) * __msg_from_pX + __box_tempDA * __msg_pX ' real x
             __box_tempID = (1 - __box_tempDA) * __msg_from_pY + __box_tempDA * __msg_pY ' real y
             __box_tempIA = (1 - __box_tempDA) * __msg_from_sW + __box_tempDA * __msg_sW ' real w
             __box_tempIB = (1 - __box_tempDA) * __msg_from_sH + __box_tempDA * __msg_sH ' real h
-
-            __box_tempIE = (1 - __box_tempDA) * __msg_avatar_from_pX + __box_tempDA * __msg_avatar_pX ' real avatar x
-            __box_tempIF = (1 - __box_tempDA) * __msg_avatar_from_pY + __box_tempDA * __msg_avatar_pY ' real avatar y
+            __box_tempDB = (1 - __box_tempDA) * __msg_from_a + __box_tempDA * __msg_a ' alpha
         End If
 
         If __animFac < 0 And __animFac + __msg_animSpeed >= 0 Then
@@ -552,6 +619,11 @@ Script __textbox_inner_refreshBg(Return Integer)
         Bitmap(__msg_bmpIdStart + 9).scalex = __box_tempDA
     End If
 
+    ' alpha
+    For __box_tempIN = 1 To 9 Step 1
+        Bitmap(__msg_bmpIdStart + __box_tempIN).forecolor_a = __box_tempDB * 255
+    Next
+
     ' 如果 avatar 存在的话
     ' 计算 avatar 位置和大小
     If Bitmap(__msg_bmpIdStart).scrwidth > 0.001 And Bitmap(__msg_bmpIdStart).scrheight > 0.001 Then
@@ -565,8 +637,17 @@ Script __textbox_inner_refreshBg(Return Integer)
         ElseIf __animFac < -1 Then
             __box_tempDA = 1
         Else
-            __box_tempDA = __textbox_inner_trans(abs(__animFac + __animFacOffset_avatar))
+            If __animFac >= 0 Then
+                __box_tempDA = __textbox_inner_trans(abs(__animFac + __animFacOffset_avatar))
+                __box_tempDB = (1 - __box_tempDA) * __msg_from_avatar_a + __box_tempDA * __msg_avatar_a ' alpha
+            Else
+                __box_tempDA = __textbox_inner_trans(abs(__animFac))
+                __box_tempDB = (1 - __box_tempDA) * __msg_old_from_avatar_a + __box_tempDA * __msg_old_avatar_a ' alpha
+            End If
         End If
+
+        ' alpha
+        Bitmap(__msg_bmpIdStart + __box_tempIN).forecolor_a = __box_tempDB * 255
 
         ' 计算 Size
         If __animFac < 0 Then

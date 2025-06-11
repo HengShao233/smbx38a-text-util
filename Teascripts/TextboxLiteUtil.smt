@@ -219,6 +219,9 @@ Dim __anchor_cache_y As Double = 0
 Dim __wid_cache As Integer = 0
 Dim __size_cache As Double = 0
 Dim __zpos_cache As Double = 0.5
+Dim __lBox_9Grid_cache_x As Integer = __lBox_9Grid_x
+Dim __lBox_9Grid_cache_y As Integer = __lBox_9Grid_y
+Dim __lBox_9Grid_cache_npcId As Long = __lBox_9Grid_npcId
 Dim __bubbleAllocateQueue_s As String = ""
 Dim __bubbleShapeData_cache As String = __bubbleShapeDataDefault
 
@@ -384,10 +387,10 @@ Script __prepareGraphicData_fromCache(content As String, id As Integer)
     __box_tempDB = __box_tempIB
 
     ' 九宫格 - 左上 右上 左下 右下
-    Call BMPCreate(__box_tempIE + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,         __lBox_9Grid_x, __lBox_9Grid_y, __lBox_9Grid_a, __lBox_9Grid_b,                                                     __offset_cache_x, __offset_cache_y, 1, 1,                                                         0, 0,     0, -1)
-    Call BMPCreate(__box_tempIE + 1 + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_x + __lBox_9Grid_a + __lBox_9Grid_w, __lBox_9Grid_y, __lBox_9Grid_c, __lBox_9Grid_b,                             __lBox_9Grid_a + __box_tempDA + __offset_cache_x, __offset_cache_y, 1, 1,                             0, 0,     0, -1)
-    Call BMPCreate(__box_tempIE + 2 + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_x, __lBox_9Grid_y + __lBox_9Grid_b + __lBox_9Grid_h, __lBox_9Grid_a, __lBox_9Grid_d,                             __offset_cache_x, __lBox_9Grid_b + __box_tempDB + __offset_cache_y, 1, 1,                             0, 0,     0, -1)
-    Call BMPCreate(__box_tempIE + 3 + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_x + __lBox_9Grid_a + __lBox_9Grid_w, __lBox_9Grid_y + __lBox_9Grid_b + __lBox_9Grid_h, __lBox_9Grid_c, __lBox_9Grid_d,     __lBox_9Grid_a + __box_tempDA + __offset_cache_x, __lBox_9Grid_b + __box_tempDB + __offset_cache_y, 1, 1, 0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + __lBox_bmpIdStart, __lBox_9Grid_cache_npcId, 0, 1,         __lBox_9Grid_cache_x, __lBox_9Grid_cache_y, __lBox_9Grid_a, __lBox_9Grid_b,                                                     __offset_cache_x, __offset_cache_y, 1, 1,                                                         0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + 1 + __lBox_bmpIdStart, __lBox_9Grid_cache_npcId, 0, 1,     __lBox_9Grid_cache_x + __lBox_9Grid_a + __lBox_9Grid_w, __lBox_9Grid_cache_y, __lBox_9Grid_c, __lBox_9Grid_b,                             __lBox_9Grid_a + __box_tempDA + __offset_cache_x, __offset_cache_y, 1, 1,                             0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + 2 + __lBox_bmpIdStart, __lBox_9Grid_cache_npcId, 0, 1,     __lBox_9Grid_cache_x, __lBox_9Grid_cache_y + __lBox_9Grid_b + __lBox_9Grid_h, __lBox_9Grid_a, __lBox_9Grid_d,                             __offset_cache_x, __lBox_9Grid_b + __box_tempDB + __offset_cache_y, 1, 1,                             0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + 3 + __lBox_bmpIdStart, __lBox_9Grid_cache_npcId, 0, 1,     __lBox_9Grid_cache_x + __lBox_9Grid_a + __lBox_9Grid_w, __lBox_9Grid_cache_y + __lBox_9Grid_b + __lBox_9Grid_h, __lBox_9Grid_c, __lBox_9Grid_d,     __lBox_9Grid_a + __box_tempDA + __offset_cache_x, __lBox_9Grid_b + __box_tempDB + __offset_cache_y, 1, 1, 0, 0,     0, -1)
     Bitmap(__box_tempIE + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
     Bitmap(__box_tempIE + 1 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
     Bitmap(__box_tempIE + 2 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
@@ -395,10 +398,10 @@ Script __prepareGraphicData_fromCache(content As String, id As Integer)
     __box_tempIE = __box_tempIE + 4
 
     ' 九宫格 - 左中 右中 上中 下中
-    Call BMPCreate(__box_tempIE + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,         __lBox_9Grid_x, __lBox_9Grid_y + __lBox_9Grid_b, __lBox_9Grid_a, __lBox_9Grid_h,                             __offset_cache_x, __lBox_9Grid_b + __offset_cache_y, 1, __box_tempDB / __lBox_9Grid_h,                              0, 0,     0, -1)
-    Call BMPCreate(__box_tempIE + 1 + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_x + __lBox_9Grid_a + __lBox_9Grid_w, __lBox_9Grid_y + __lBox_9Grid_b, __lBox_9Grid_c, __lBox_9Grid_h,     __lBox_9Grid_a + __box_tempDA + __offset_cache_x, __lBox_9Grid_b + __offset_cache_y, 1, __box_tempDB / __lBox_9Grid_h,  0, 0,     0, -1)
-    Call BMPCreate(__box_tempIE + 2 + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_x + __lBox_9Grid_a, __lBox_9Grid_y, __lBox_9Grid_w, __lBox_9Grid_b,                             __lBox_9Grid_a + __offset_cache_x, __offset_cache_y, __box_tempDA / __lBox_9Grid_w, 1,                              0, 0,     0, -1)
-    Call BMPCreate(__box_tempIE + 3 + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_x + __lBox_9Grid_a, __lBox_9Grid_y + __lBox_9Grid_b + __lBox_9Grid_h, __lBox_9Grid_w, __lBox_9Grid_d,     __lBox_9Grid_a + __offset_cache_x, __lBox_9Grid_b + __box_tempDB + __offset_cache_y, __box_tempDA / __lBox_9Grid_w, 1,  0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + __lBox_bmpIdStart, __lBox_9Grid_cache_npcId, 0, 1,         __lBox_9Grid_cache_x, __lBox_9Grid_cache_y + __lBox_9Grid_b, __lBox_9Grid_a, __lBox_9Grid_h,                             __offset_cache_x, __lBox_9Grid_b + __offset_cache_y, 1, __box_tempDB / __lBox_9Grid_h,                              0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + 1 + __lBox_bmpIdStart, __lBox_9Grid_cache_npcId, 0, 1,     __lBox_9Grid_cache_x + __lBox_9Grid_a + __lBox_9Grid_w, __lBox_9Grid_cache_y + __lBox_9Grid_b, __lBox_9Grid_c, __lBox_9Grid_h,     __lBox_9Grid_a + __box_tempDA + __offset_cache_x, __lBox_9Grid_b + __offset_cache_y, 1, __box_tempDB / __lBox_9Grid_h,  0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + 2 + __lBox_bmpIdStart, __lBox_9Grid_cache_npcId, 0, 1,     __lBox_9Grid_cache_x + __lBox_9Grid_a, __lBox_9Grid_cache_y, __lBox_9Grid_w, __lBox_9Grid_b,                             __lBox_9Grid_a + __offset_cache_x, __offset_cache_y, __box_tempDA / __lBox_9Grid_w, 1,                              0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + 3 + __lBox_bmpIdStart, __lBox_9Grid_cache_npcId, 0, 1,     __lBox_9Grid_cache_x + __lBox_9Grid_a, __lBox_9Grid_cache_y + __lBox_9Grid_b + __lBox_9Grid_h, __lBox_9Grid_w, __lBox_9Grid_d,     __lBox_9Grid_a + __offset_cache_x, __lBox_9Grid_b + __box_tempDB + __offset_cache_y, __box_tempDA / __lBox_9Grid_w, 1,  0, 0,     0, -1)
     Bitmap(__box_tempIE + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
     Bitmap(__box_tempIE + 1 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
     Bitmap(__box_tempIE + 2 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
@@ -406,7 +409,7 @@ Script __prepareGraphicData_fromCache(content As String, id As Integer)
     __box_tempIE = __box_tempIE + 4
 
     ' 九宫格 - 中
-    Call BMPCreate(__box_tempIE + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_a, __lBox_9Grid_b, __lBox_9Grid_w, __lBox_9Grid_h,     __lBox_9Grid_a + __offset_cache_x, __lBox_9Grid_b + __offset_cache_y, __box_tempDA / __lBox_9Grid_w, __box_tempDB / __lBox_9Grid_h,     0, 0,     0, -1)
+    Call BMPCreate(__box_tempIE + __lBox_bmpIdStart, __lBox_9Grid_cache_npcId, 0, 1,     __lBox_9Grid_a, __lBox_9Grid_b, __lBox_9Grid_w, __lBox_9Grid_h,     __lBox_9Grid_a + __offset_cache_x, __lBox_9Grid_b + __offset_cache_y, __box_tempDA / __lBox_9Grid_w, __box_tempDB / __lBox_9Grid_h,     0, 0,     0, -1)
     Bitmap(__box_tempIE + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
 End Script
 
@@ -422,6 +425,10 @@ Script __clearCache()
     __anchor_cache_y = 0
     __zpos_cache = __lBox_defaultZpos
     __bubbleShapeData_cache = __bubbleShapeDataDefault
+
+    __lBox_9Grid_cache_x = __lBox_9Grid_x
+    __lBox_9Grid_cache_y = __lBox_9Grid_y
+    __lBox_9Grid_cache_npcId = __lBox_9Grid_npcId
 End Script
 
 ' ----------------------------------------------------- 外部函数
@@ -449,6 +456,16 @@ Export Script TextboxLite_StorePos(x As Long, y As Long)
     Call __writeInt_2Char("", 1, x)
     Call __writeInt_2Char("", 3, y)
     __bubbleShapeData_cache = __ret_s
+End Script
+
+' 设置气泡九宫格
+' @param npcId npc id
+' @param srcX srcX
+' @param srcY srcY
+Export Script TextboxLite_Store9Grid(npcId As Long, srcX As Integer, srcY As Integer)
+    __lBox_9Grid_cache_npcId = npcId
+    __lBox_9Grid_cache_x = srcX
+    __lBox_9Grid_cache_y = srcY
 End Script
 
 ' 设置锚点
