@@ -258,7 +258,8 @@ End Script
 
 ' 获取字符尺寸
 ' @return 字符尺寸
-Export Script TXT_GetCharSize(Return Long)
+Export Script TXT_GetCharSize(id As Long, Return Long)
+{sizeExtends}If id < 128 And id >= 0 Then Return {sizeX} / 2
     Return {sizeX}
 End Script
 
@@ -266,6 +267,11 @@ End Script
 ' @return 贴图集中一行拥有的字符数
 Export Script TXT_GetCntX(Return Long)
     Return {xCnt}
+End Script
+
+' 获取字符的偏移量
+Export Script TXT_GetOffsetY(id As Long, Return Integer)
+{offsetExtends}Return 0
 End Script
 ";
 }

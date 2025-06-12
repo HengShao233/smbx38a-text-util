@@ -1,2 +1,2 @@
 ' Call TextboxLite_StorePos()
-Call TextboxLite_Submit($"我能吞下玻璃而\{n}不伤身体")
+Call TextboxLite_Submit($"\{speed-j}\{#000000ff}I can eat glass, it doesn't hurt me.")

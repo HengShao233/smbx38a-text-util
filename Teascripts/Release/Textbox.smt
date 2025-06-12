@@ -367,10 +367,7 @@ Script __txtBox_SetupFlag(flag As String, Return Integer)
 End Script
 
 Script __txtBox_GetWidth(c As Long, Return Integer)
-    If c <= 127 Then
-        Return TXT_GetCharSize() / 2
-    End If
-    Return TXT_GetCharSize()
+    Return TXT_GetCharSize(c)
 End Script
 
 Script __txtBox_PreProcessingLine()
@@ -440,7 +437,7 @@ Script __txtBox_PreProcessingLine()
             Continue
         End If
         __box_tempDA = __txtBox_Max(__box_tempID + __box_size, 0.0)
-        __box_tempIG = __box_tempIB + (__txtBox_GetWidth(__box_tempIC) + __box_charSpacing) * (__box_tempDA / TXT_GetCharSize()) + __box_tempIL * 2
+        __box_tempIG = __box_tempIB + (__txtBox_GetWidth(__box_tempIC) + __box_charSpacing) * (__box_tempDA / TXT_GetCharSize(-1)) + __box_tempIL * 2
         If __box_wid > 0 And __box_tempIG > __box_wid Then
             Exit For
         End If
@@ -587,11 +584,11 @@ Script __txtBox_InternalForceDrawChar(charCode As Integer, Return Integer)
     Bitmap(__box_tempIA).hide = 0
     Bitmap(__box_tempIA).zpos = __box_bmpZpos
     Bitmap(__box_tempIA).scrwidth = __txtBox_GetWidth(__box_tempIB)
-    Bitmap(__box_tempIA).scrheight = TXT_GetCharSize()
+    Bitmap(__box_tempIA).scrheight = TXT_GetCharSize(-1)
     Bitmap(__box_tempIA).scrx = TXT_GetDestX(__box_tempIB)
     Bitmap(__box_tempIA).scry = TXT_GetDestY(__box_tempIB)
-    Bitmap(__box_tempIA).scalex = __txtBox_Max(__sizeOffset + __box_size, 0.0) / TXT_GetCharSize()
-    Bitmap(__box_tempIA).scaley = __txtBox_Max(__sizeOffset + __box_size, 0.0) / TXT_GetCharSize()
+    Bitmap(__box_tempIA).scalex = __txtBox_Max(__sizeOffset + __box_size, 0.0) / TXT_GetCharSize(-1)
+    Bitmap(__box_tempIA).scaley = Bitmap(__box_tempIA).scalex
 
     If __colB >= 0 And __colR >= 0 And __colG >= 0 Then
         Bitmap(__box_tempIA).forecolor_r = __colR
@@ -606,7 +603,7 @@ Script __txtBox_InternalForceDrawChar(charCode As Integer, Return Integer)
     End If
 
     Bitmap(__box_tempIA).destx = __posSeekX + __exSizeX
-    Bitmap(__box_tempIA).desty = __posSeekY - __txtBox_Max(__sizeOffset + __box_size, 0.0)
+    Bitmap(__box_tempIA).desty = __posSeekY - __txtBox_Max(__sizeOffset + __box_size, 0.0) + (TXT_GetOffsetY(charCode) * Bitmap(__box_tempIA).scalex)
 
     If __shake <> 0 Then
         Call __txtBox_PushShake(__currUsedBmpCnt, Bitmap(__box_tempIA).destx, Bitmap(__box_tempIA).desty, __shake)
@@ -615,7 +612,7 @@ Script __txtBox_InternalForceDrawChar(charCode As Integer, Return Integer)
         Call __txtBox_PushSwing(__currUsedBmpCnt, Bitmap(__box_tempIA).destx, Bitmap(__box_tempIA).desty, __swing)
     End If
 
-    Return __txtBox_Max(__realCharSpacing + __txtBox_GetWidth(__box_tempIB) * __txtBox_Max(__sizeOffset + __box_size, 0.0) / TXT_GetCharSize(), 0.0) + __exSizeX * 2
+    Return __txtBox_Max(__realCharSpacing + __txtBox_GetWidth(__box_tempIB) * __txtBox_Max(__sizeOffset + __box_size, 0.0) / TXT_GetCharSize(-1), 0.0) + __exSizeX * 2
 End Script
 
 Script __txtBox_InternalForceDrawNext(Return Integer)
@@ -817,6 +814,16 @@ End Script
 ' 获取事件信息
 Export Script Textbox_GetEventInfo(Return String)
     Return __eventInfo & ""
+End Script
+
+' 是否已经到末尾了
+Export Script Textbox_IsEnd(Return Integer)
+    Return __seek >= __len
+End Script
+
+' 是否正在等待
+Export Script Textbox_IsWait(Return Integer)
+    Return __wait
 End Script
 
 ' ----------------------------------------------------- atribute setter
@@ -1476,6 +1483,7 @@ Script __textbox_inner_refreshBg(Return Integer)
                 __eventState = 2
                 __eventValue = ""
                 Call EXEScript(__box_eventScriptName)
+                __eventState = 0
             End If
         End If
         __box_tempIA = Abs(__box_tempIA)
@@ -1747,10 +1755,7 @@ Script __writeInt_char(data As String, offset As Long, value As Integer, Return 
 End Script
 
 Script __getWidth(c As Long, Return Integer)
-    If c <= 127 Then
-        Return TXT_GetCharSize() / 2
-    End If
-    Return TXT_GetCharSize()
+    Return TXT_GetCharSize(c)
 End Script
 
 ' ----------------------------------------------------- getter and setter
@@ -1978,22 +1983,22 @@ Script __prepareGraphicData_fromCache(content As String, id As Integer)
     __box_tempIA = 0 ' w
     __box_tempID = 0 ' w-calc
     __box_tempIB = 0 ' h
-    __box_tempDA = (TXT_GetCharSize() + __size_cache) / TXT_GetCharSize()
+    __box_tempDA = (TXT_GetCharSize(-1) + __size_cache) / TXT_GetCharSize(-1)
     Do While __box_tempIC >= 0 and __box_tempII <= __lBox_max_char
         If TXT_IsFlag(__box_tempIC) <> 0 Then
             __box_tempII = __box_tempII + 1
             If TXT_GetFlag(__box_tempIC) = "n" Then
                 __box_tempID = 0
-                __box_tempIB = __box_tempIB + TXT_GetCharSize() * __box_tempDA
+                __box_tempIB = __box_tempIB + TXT_GetCharSize(-1) * __box_tempDA
             End If
             __box_tempIC = TXT_GetNext()
             Continue
         End If
         If __box_tempID >= __wid_cache and __wid_cache > 0 Then
             __box_tempID = 0
-            __box_tempIB = __box_tempIB + TXT_GetCharSize() * __box_tempDA
+            __box_tempIB = __box_tempIB + TXT_GetCharSize(-1) * __box_tempDA
         End If
-        Call BMPCreate(__box_tempIE + __lBox_bmpIdStart, __lBox_char_npcId, 0, 1,     TXT_GetDestX(__box_tempIC), TXT_GetDestY(__box_tempIC), TXT_GetCharSize(), TXT_GetCharSize(),     __box_tempID + __lBox_9Grid_a + __offset_cache_x, __box_tempIB + __lBox_9Grid_b + __offset_cache_y, __box_tempDA, __box_tempDA,     0, 0,     0, -1)
+        Call BMPCreate(__box_tempIE + __lBox_bmpIdStart, __lBox_char_npcId, 0, 1,     TXT_GetDestX(__box_tempIC), TXT_GetDestY(__box_tempIC), TXT_GetCharSize(-1), TXT_GetCharSize(-1),     __box_tempID + __lBox_9Grid_a + __offset_cache_x, __box_tempIB + __lBox_9Grid_b + __offset_cache_y, __box_tempDA, __box_tempDA,     0, 0,     0, -1)
         Bitmap(__box_tempIE + __lBox_bmpIdStart).zpos = __zpos_cache
         Bitmap(__box_tempIE + __lBox_bmpIdStart).forecolor_a = 255
         Bitmap(__box_tempIE + __lBox_bmpIdStart).forecolor_r = __color_cache_r
@@ -2011,7 +2016,7 @@ Script __prepareGraphicData_fromCache(content As String, id As Integer)
     If __box_tempID > __box_tempIA Then
         __box_tempIA = __box_tempID
     End If
-    __box_tempIB = __box_tempIB + TXT_GetCharSize() * __box_tempDA
+    __box_tempIB = __box_tempIB + TXT_GetCharSize(-1) * __box_tempDA
 
     Call __writeInt_char("", 13, __box_tempIA + __lBox_9Grid_a + __lBox_9Grid_c) ' width
     Call __writeInt_char("", 25, __box_tempIB + __lBox_9Grid_b + __lBox_9Grid_d) ' height
@@ -2393,7 +2398,6 @@ Flag_EndLitBox:
 Flag_EndRichText:
 
     ' ----------------------------------------------------- text box
-    Call __textbox_inner_refreshBg()
     If __animFac < -2 Then
         __box_tempIN = __seek
         Call TextBoxLowLevel_DrawNext()
@@ -2401,8 +2405,10 @@ Flag_EndRichText:
             __eventState = 1
             __eventValue = ChrW(__seek - __box_tempIN)
             Call ExeScript(__box_eventScriptName)
+            __eventState = 0
         End If
     End If
+    Call __textbox_inner_refreshBg()
 
     ' ----------------------------------------------------- end loop
     Call Sleep(1)

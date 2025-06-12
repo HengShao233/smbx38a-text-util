@@ -1,29 +1,42 @@
 {
   // font file
-  "font-path": "./px12.ttf",
+  "font-path": "",
   // atlas output path
-  "output-path": "./",
+  "output-path": "",
   // render conf
   "em-size": 9,
   // render conf
-  "grid-size": 12,
+  "grid-size": 22,
   // render conf
-  "grid-offset": [-2, -3],
+  "grid-offset": [0, 0],
   // render conf
   "spc-grid-offset": [
     // ["?", 0, 0]
     // [here are 0 items...]
   ],
   // render conf
+  "char-offset-y": [
+    ["g", 3],
+    ["q", 6],
+    ["p", 6],
+    ["j", 4]
+  ],
+  // render conf
+  "char-size": [
+    ["j", 6],
+    ["j", 9],
+    ["t", 9]
+  ],
+  // render conf
   "canvas-size": 2048,
   // render conf
-  "font-render-type": 1,
+  "font-render-type": -1, // -1
   // ex char set
   "char-set": "",
   // is char set additional
   "addition-char-set": true,
   // scripts need to transcode
-  "script": ["*here are 0 script files...*"],
+  "script": [],
   // is scan folder
   "scan-folder-script": false,
   // need to gen util
