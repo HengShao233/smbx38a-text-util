@@ -136,7 +136,7 @@ internal static partial class Program
                 AtlasGen.SingleCharOffset[d.C] = d;
 
             var xCnt = curr.CanvasSize / curr.CharSize;
-            if (!string.IsNullOrWhiteSpace(curr.OutputPath) && File.Exists(curr.FontPath) && Directory.Exists(curr.OutputPath))
+            if (smtList.Count <= 0 && !string.IsNullOrWhiteSpace(curr.OutputPath) && File.Exists(curr.FontPath) && Directory.Exists(curr.OutputPath))
             {
                 // 生成字符贴图集
                 xCnt = AtlasGen.Gen(
