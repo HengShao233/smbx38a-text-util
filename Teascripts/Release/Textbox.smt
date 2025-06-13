@@ -366,10 +366,6 @@ Script __txtBox_SetupFlag(flag As String, Return Integer)
     Return 0
 End Script
 
-Script __txtBox_GetWidth(c As Long, Return Integer)
-    Return TXT_GetCharSize(c)
-End Script
-
 Script __txtBox_PreProcessingLine()
     __box_tempIB = 0 ' widCnt
     __box_tempID = __sizeOffset ' sizeOffset
@@ -437,7 +433,7 @@ Script __txtBox_PreProcessingLine()
             Continue
         End If
         __box_tempDA = __txtBox_Max(__box_tempID + __box_size, 0.0)
-        __box_tempIG = __box_tempIB + (__txtBox_GetWidth(__box_tempIC) + __box_charSpacing) * (__box_tempDA / TXT_GetCharSize(-1)) + __box_tempIL * 2
+        __box_tempIG = __box_tempIB + (TXT_GetCharSize(__box_tempIC) + __box_charSpacing) * (__box_tempDA / TXT_GetCharSize(-1)) + __box_tempIL * 2
         If __box_wid > 0 And __box_tempIG > __box_wid Then
             Exit For
         End If
@@ -583,7 +579,7 @@ Script __txtBox_InternalForceDrawChar(charCode As Integer, Return Integer)
     __box_tempIA = __currUsedBmpCnt + __box_bmpStart
     Bitmap(__box_tempIA).hide = 0
     Bitmap(__box_tempIA).zpos = __box_bmpZpos
-    Bitmap(__box_tempIA).scrwidth = __txtBox_GetWidth(__box_tempIB)
+    Bitmap(__box_tempIA).scrwidth = TXT_GetCharSize(__box_tempIB)
     Bitmap(__box_tempIA).scrheight = TXT_GetCharSize(-1)
     Bitmap(__box_tempIA).scrx = TXT_GetDestX(__box_tempIB)
     Bitmap(__box_tempIA).scry = TXT_GetDestY(__box_tempIB)
@@ -612,7 +608,7 @@ Script __txtBox_InternalForceDrawChar(charCode As Integer, Return Integer)
         Call __txtBox_PushSwing(__currUsedBmpCnt, Bitmap(__box_tempIA).destx, Bitmap(__box_tempIA).desty, __swing)
     End If
 
-    Return __txtBox_Max(__realCharSpacing + __txtBox_GetWidth(__box_tempIB) * __txtBox_Max(__sizeOffset + __box_size, 0.0) / TXT_GetCharSize(-1), 0.0) + __exSizeX * 2
+    Return __txtBox_Max(__realCharSpacing + TXT_GetCharSize(__box_tempIB) * __txtBox_Max(__sizeOffset + __box_size, 0.0) / TXT_GetCharSize(-1), 0.0) + __exSizeX * 2
 End Script
 
 Script __txtBox_InternalForceDrawNext(Return Integer)
@@ -1754,10 +1750,6 @@ Script __writeInt_char(data As String, offset As Long, value As Integer, Return 
     Return 4
 End Script
 
-Script __getWidth(c As Long, Return Integer)
-    Return TXT_GetCharSize(c)
-End Script
-
 ' ----------------------------------------------------- getter and setter
 Script __set_bubbleShapeData(idx As Integer, data As String)
     If idx <= 4 Then
@@ -2005,7 +1997,7 @@ Script __prepareGraphicData_fromCache(content As String, id As Integer)
         Bitmap(__box_tempIE + __lBox_bmpIdStart).forecolor_g = __color_cache_g
         Bitmap(__box_tempIE + __lBox_bmpIdStart).forecolor_b = __color_cache_b
 
-        __box_tempID = __box_tempID + __getWidth(__box_tempIC) * __box_tempDA
+        __box_tempID = __box_tempID + TXT_GetCharSize(__box_tempIC) * __box_tempDA
         If __box_tempID > __box_tempIA Then
             __box_tempIA = __box_tempID
         End If

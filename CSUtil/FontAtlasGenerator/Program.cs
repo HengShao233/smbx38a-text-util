@@ -5,7 +5,7 @@ namespace FontAtlasGenerator;
 
 internal static partial class Program
 {
-    private const string Version = "2.2.0";
+    private const string Version = "2.2.1";
 
     private struct Offset
     {
@@ -91,6 +91,7 @@ internal static partial class Program
                 targetJson = json;
             }
 
+            var isFound = false;
             if (!string.IsNullOrEmpty(targetJson))
             {
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -102,14 +103,18 @@ internal static partial class Program
                 if (File.Exists($"./.{jsonName}.json"))
                 {
                     using var f = File.Open($"./.{jsonName}.json", FileMode.Open, FileAccess.Read);
-                    CheckJson(f, out var context);
+                    score = CheckJson(f, out var context);
+                    isFound = true;
                     curr = context;
 
+                    Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("read default cfg json");
+                    Console.ForegroundColor = ConsoleColor.White;
                 }
             }
 
             var j = BuildJson(curr);
+            if (!isFound || score <= 1)
             {
                 using var ff = File.Open($"./.{jsonName}.json", FileMode.Create, FileAccess.Write);
                 using var sw = new StreamWriter(ff);

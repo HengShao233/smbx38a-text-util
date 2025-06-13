@@ -256,7 +256,6 @@ End Script
 ' @return 字符尺寸
 Export Script TXT_GetCharSize(id As Long, Return Long)
     If id = 106 Then Return 6
-    If id = 106 Then Return 9
     If id = 116 Then Return 9
     If id < 128 And id >= 0 Then Return 22 / 2
     Return 22
@@ -270,7 +269,7 @@ End Script
 
 ' 获取字符的偏移量
 Export Script TXT_GetOffsetY(id As Long, Return Integer)
-    If id = 103 Then Return 6
+    If id = 103 Then Return 3
     If id = 113 Then Return 6
     If id = 112 Then Return 6
     If id = 106 Then Return 4

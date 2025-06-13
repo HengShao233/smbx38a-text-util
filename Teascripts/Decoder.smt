@@ -242,24 +242,36 @@ End Script
 ' @param id 字符 code
 ' @return 返回该字符在字符贴图集中的 x 坐标
 Export Script TXT_GetDestX(id As Long, Return Long)
-    Return (id Mod 170) * 12
+    Return (id Mod 93) * 22
 End Script
 
 ' 根据 id 获得目标 y 坐标
 ' @param id 字符 code
 ' @return 返回该字符在字符贴图集中的 y 坐标
 Export Script TXT_GetDestY(id As Long, Return Long)
-    Return (id \ 170) * 12
+    Return (id \ 93) * 22
 End Script
 
 ' 获取字符尺寸
 ' @return 字符尺寸
-Export Script TXT_GetCharSize(Return Long)
-    Return 12
+Export Script TXT_GetCharSize(id As Long, Return Long)
+    If id = 106 Then Return 6
+    If id = 116 Then Return 9
+    If id < 128 And id >= 0 Then Return 22 / 2
+    Return 22
 End Script
 
 ' 获取贴图集中一行拥有的字符数
 ' @return 贴图集中一行拥有的字符数
 Export Script TXT_GetCntX(Return Long)
-    Return 170
+    Return 93
+End Script
+
+' 获取字符的偏移量
+Export Script TXT_GetOffsetY(id As Long, Return Integer)
+    If id = 103 Then Return 3
+    If id = 113 Then Return 6
+    If id = 112 Then Return 6
+    If id = 106 Then Return 4
+    Return 0
 End Script
