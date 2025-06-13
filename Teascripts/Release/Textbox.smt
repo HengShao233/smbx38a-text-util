@@ -1872,6 +1872,7 @@ Script __popQueue(Return Integer)
     Else
         __bubbleAllocateQueue_s = right(__bubbleAllocateQueue_s, -1)
     End If
+    Return 1
 End Script
 
 Script __peekQueue(Return Integer)
