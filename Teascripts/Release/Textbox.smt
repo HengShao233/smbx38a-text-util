@@ -71,6 +71,13 @@ Export Script TextboxEvent_GetValue(Return String)
     Return __eventValue & ""
 End Script
 
+Dim __exit As Integer = 0 ' 退出 textbox
+
+' 结束 Textbox 生命周期
+Export Script Textbox_Exit()
+    __exit = -1
+End Script
+
 ' -----------------------------------------------------
 ' -----------------------------------------------------
 ' -----------------------------------------------------
@@ -2403,6 +2410,13 @@ Flag_EndRichText:
     End If
     Call __textbox_inner_refreshBg()
 
+    If __exit Then
+        Exit Do
+    End
     ' ----------------------------------------------------- end loop
     Call Sleep(1)
 Loop
+
+__exit = 0
+Call TextboxLite_Clear()
+Call __textbox_inner_cleanBg()
