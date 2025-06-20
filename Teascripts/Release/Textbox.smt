@@ -377,22 +377,19 @@ Script __txtBox_PreProcessingLine()
             If __box_tempIE = 1 Then
                 __box_tempSA = TXT_GetFlag(__box_tempIC)
                 __box_tempIE = len(__box_tempSA)
-                If __box_tempIE < 4 Then
-                    If __box_tempIE > 0 Then
-                        __box_tempSB = Mid(__box_tempSA, 1, 1)
-                        If __box_tempSB = "n" And __seek <> __box_tempIA Then
-                            Exit For
-                        End If
-                    End If
+                If __box_tempIE <= 0 Then
                     Continue
                 End If
-                __box_tempSB = Mid(__box_tempSA, 1, 4)
+                __box_tempSB = Mid(__box_tempSA, 1, 1)
+                If __box_tempSB = "n" And __seek <> __box_tempIA Then
+                    Exit For
+                End If
                 If __box_tempSB = "s" Then
                     __box_tempID = 0
-                    If __box_tempIE < 6 Then
+                    If __box_tempIE < 3 Then
                         Continue
                     End If
-                    __box_tempIH = __txtBox_ReadFlagVal(__box_tempSA, 5)
+                    __box_tempIH = __txtBox_ReadFlagVal(__box_tempSA, 2)
                     If __box_tempIH < 40 And __box_tempIH > -40 Then
                         __box_tempID = __box_tempIH
                     End If
@@ -404,24 +401,24 @@ Script __txtBox_PreProcessingLine()
                     End If
                     Exit For
                 End If
-                If __box_tempIE < 6 Then
+                If __box_tempIE < 2 Then
                     Continue
                 End If
-                __box_tempSB = Mid(__box_tempSA, 1, 6)
+                __box_tempSB = Mid(__box_tempSA, 1, 2)
                 If __box_tempSB = "+s" Then
                     __box_tempIL = 0
                     __box_tempIM = 0
-                    If __box_tempIE < 8 Then
+                    If __box_tempIE < 4 Then
                         Continue
                     End If
-                    __box_tempIH = __txtBox_ReadFlagVal(__box_tempSA, 7)
+                    __box_tempIH = __txtBox_ReadFlagVal(__box_tempSA, 3)
                     If __box_tempIH > -40 And __box_tempIH < 40 Then
                         __box_tempIL = __box_tempIH
                     End If
-                    If __box_tempIE < 10 Then
+                    If __box_tempIE < 6 Then
                         Continue
                     End If
-                    __box_tempIH = __txtBox_ReadFlagVal(__box_tempSA, 9)
+                    __box_tempIH = __txtBox_ReadFlagVal(__box_tempSA, 5)
                     If __box_tempIH > -40 And __box_tempIH < 40 Then
                         __box_tempIM = __box_tempIH
                     End If
