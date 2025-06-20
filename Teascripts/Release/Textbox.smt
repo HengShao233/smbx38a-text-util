@@ -268,47 +268,63 @@ Script __txtBox_SetupFlag(flag As String, Return Integer)
         Return 0
     End If
 
-    ' 下面是四个字符的 flag
-    If __box_tempIE < 4 Then
-        Return 0
-    End If
-    __box_tempSB = Mid(flag, 1, 4)
-
-    ' wait
-    If __box_tempSB = "size" Then
+    ' size
+    If __box_tempSB = "s" Then
         __sizeOffset = 0
-        If __box_tempIE < 6 Then
+        If __box_tempIE < 3 Then
             Return 0
         End If
-        __box_tempIH = __txtBox_ReadFlagVal(flag, 5)
+        __box_tempIH = __txtBox_ReadFlagVal(flag, 2)
         If __box_tempIH < 40 And __box_tempIH > -40 Then
             __sizeOffset = __box_tempIH
         End If
         Return 0
     End If
 
-    If __box_tempSB = "wait" Then
+    ' wait
+    If __box_tempSB = "?" Then
         __wait = 1
         Return 0
-    ElseIf __box_tempSB = "page" Then
+    ' page
+    ElseIf __box_tempSB = "p" Then
         __page = 1
         Return 0
     End If
 
-    ' 下面是五个字符的 flag
-    If __box_tempIE < 5 Then
-        Return 0
-    End If
-    __box_tempSB = Mid(flag, 1, 5)
-
-    ' speed
-    If __box_tempSB = "speed" Then
-        __speed = 0
-        __seekDelay = 0
-        If __box_tempIE < 6 Then
+    ' shake
+    If __box_tempSB = "!" Then
+        __shake = 0
+        If __box_tempIE < 3 Then
             Return 0
         End If
-        __box_tempIH = __txtBox_ReadFlagVal(flag, 6)
+        __box_tempIH = __txtBox_ReadFlagVal(flag, 2)
+        If __box_tempIH < 40 And __box_tempIH > -40 Then
+            __shake = __box_tempIH
+        End If
+        Return 0
+    End If
+
+    ' swing
+    If __box_tempSB = "~" Then
+        __swing = 0
+        If __box_tempIE < 3 Then
+            Return 0
+        End If
+        __box_tempIH = __txtBox_ReadFlagVal(flag, 2)
+        If __box_tempIH < 40 And __box_tempIH > -40 Then
+            __swing = __box_tempIH
+        End If
+        Return 0
+    End If
+
+    ' speed
+    If __box_tempSB = ">" Then
+        __speed = 0
+        __seekDelay = 0
+        If __box_tempIE < 3 Then
+            Return 0
+        End If
+        __box_tempIH = __txtBox_ReadFlagVal(flag, 2)
         If __box_tempIH < 40 And __box_tempIH > -40 Then
             If __isInDrawToSeek = 0 Then
                 __speed = __box_tempIH
@@ -318,53 +334,27 @@ Script __txtBox_SetupFlag(flag As String, Return Integer)
         Return 0
     End If
 
-    ' shake
-    If __box_tempSB = "shake" Then
-        __shake = 0
-        If __box_tempIE < 6 Then
-            Return 0
-        End If
-        __box_tempIH = __txtBox_ReadFlagVal(flag, 6)
-        If __box_tempIH < 40 And __box_tempIH > -40 Then
-            __shake = __box_tempIH
-        End If
+    ' 下面是 2 个字符的 flag
+    If __box_tempIE < 2 Then
         Return 0
     End If
-
-    ' swing
-    If __box_tempSB = "swing" Then
-        __swing = 0
-        If __box_tempIE < 6 Then
-            Return 0
-        End If
-        __box_tempIH = __txtBox_ReadFlagVal(flag, 6)
-        If __box_tempIH < 40 And __box_tempIH > -40 Then
-            __swing = __box_tempIH
-        End If
-        Return 0
-    End If
-
-    ' 下面是六个字符的 flag
-    If __box_tempIE < 6 Then
-        Return 0
-    End If
-    __box_tempSB = Mid(flag, 1, 6)
+    __box_tempSB = Mid(flag, 1, 4)
 
     ' exsize
-    If __box_tempSB = "exsize" Then
+    If __box_tempSB = "+s" Then
         __exSizeX = 0
         __exSizeY = 0
-        If __box_tempIE < 8 Then
+        If __box_tempIE < 4 Then
             Return 0
         End If
-        __box_tempIH = __txtBox_ReadFlagVal(flag, 7)
+        __box_tempIH = __txtBox_ReadFlagVal(flag, 3)
         If __box_tempIH < 40 And __box_tempIH > -40 Then
             __exSizeX = __box_tempIH
         End If
-        If __box_tempIE < 10 Then
+        If __box_tempIE < 6 Then
             Return 0
         End If
-        __box_tempIH = __txtBox_ReadFlagVal(flag, 9)
+        __box_tempIH = __txtBox_ReadFlagVal(flag, 5)
         If __box_tempIH < 40 And __box_tempIH > -40 Then
             __exSizeY = __box_tempIH
         End If
@@ -397,7 +387,7 @@ Script __txtBox_PreProcessingLine()
                     Continue
                 End If
                 __box_tempSB = Mid(__box_tempSA, 1, 4)
-                If __box_tempSB = "size" Then
+                If __box_tempSB = "s" Then
                     __box_tempID = 0
                     If __box_tempIE < 6 Then
                         Continue
@@ -408,7 +398,7 @@ Script __txtBox_PreProcessingLine()
                     End If
                     Continue
                 End If
-                If __box_tempSB = "page" Then
+                If __box_tempSB = "p" Then
                     If __box_tempIB = 0 Then
                         Continue
                     End If
@@ -418,7 +408,7 @@ Script __txtBox_PreProcessingLine()
                     Continue
                 End If
                 __box_tempSB = Mid(__box_tempSA, 1, 6)
-                If __box_tempSB = "exsize" Then
+                If __box_tempSB = "+s" Then
                     __box_tempIL = 0
                     __box_tempIM = 0
                     If __box_tempIE < 8 Then
