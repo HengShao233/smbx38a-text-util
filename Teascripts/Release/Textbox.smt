@@ -151,6 +151,9 @@ Dim __colG As Integer = -1
 Dim __colB As Integer = -1
 Dim __colA As Integer = 255
 
+' animFac: -4 | [-1, 1]
+Dim __animFac As Double = -4
+
 ' ----------------------------------------------------- internal function
 Script __txtBox_Max(a As Double, b As Double, Return Double)
     If a > b Then
@@ -790,6 +793,10 @@ End Script
 
 ' 绘制到下一个 wait flag 处
 Export Script Textbox_DrawToWait(Return Integer)
+    If __animFac >= -2 Then
+        Return 0
+    End If
+
     If __box_wid = 0 Or __len = 0 Or __box_hei = 0 Then
         Return 0
     End If
@@ -1031,7 +1038,6 @@ Dim __msg_avatar_srcH As Integer = 0
 ' anim factor: [0, 1]
 Dim __animFacOffset_msgBox As Double = 0
 Dim __animFacOffset_avatar As Double = 0
-Dim __animFac As Double = -4
 
 ' ------------------------------------------- params
 Dim __msg_lastHight As Integer = -1
@@ -1187,7 +1193,7 @@ End Script
 ' @param npcId 头像的 npc id
 ' @param srcX srcX
 ' @param srcY srcY
-Export Script Textbox_SetSet9GridNpcIdImm(npcId As Long, srcX As Integer, srcY As Integer, Return Integer)
+Export Script Textbox_Set9GridNpcIdImm(npcId As Long, srcX As Integer, srcY As Integer, Return Integer)
     __msg_9Grid_npcId = npcId
     If __isCreated = 0 Then
         Return 0
@@ -1195,9 +1201,27 @@ Export Script Textbox_SetSet9GridNpcIdImm(npcId As Long, srcX As Integer, srcY A
 
     For __box_tempIN = 1 To 9 Step 1
         Bitmap(__msg_bmpIdStart + __box_tempIN).scrid = __msg_9Grid_npcId
-        Bitmap(__msg_bmpIdStart + __box_tempIN).scrx = srcX
-        Bitmap(__msg_bmpIdStart + __box_tempIN).scry = srcY
     Next
+    Bitmap(__msg_bmpIdStart + 1).scrx = srcX
+    Bitmap(__msg_bmpIdStart + 1).scry = srcY
+    Bitmap(__msg_bmpIdStart + 2).scrx = srcX + __msg_9Grid_a + __msg_9Grid_w
+    Bitmap(__msg_bmpIdStart + 2).scry = srcY
+    Bitmap(__msg_bmpIdStart + 3).scrx = srcX
+    Bitmap(__msg_bmpIdStart + 3).scry = srcY + __msg_9Grid_b + __msg_9Grid_h
+    Bitmap(__msg_bmpIdStart + 4).scrx = srcX + __msg_9Grid_a + __msg_9Grid_w
+    Bitmap(__msg_bmpIdStart + 4).scry = srcY + __msg_9Grid_b + __msg_9Grid_h
+
+    Bitmap(__msg_bmpIdStart + 5).scrx = srcX
+    Bitmap(__msg_bmpIdStart + 5).scry = srcY + __msg_9Grid_b
+    Bitmap(__msg_bmpIdStart + 6).scrx = srcX + __msg_9Grid_a + __msg_9Grid_w
+    Bitmap(__msg_bmpIdStart + 6).scry = srcY + __msg_9Grid_b
+    Bitmap(__msg_bmpIdStart + 7).scrx = srcX + __msg_9Grid_a
+    Bitmap(__msg_bmpIdStart + 7).scry = srcY
+    Bitmap(__msg_bmpIdStart + 8).scrx = srcX + __msg_9Grid_a
+    Bitmap(__msg_bmpIdStart + 8).scry = srcY + __msg_9Grid_b + __msg_9Grid_h
+
+    Bitmap(__msg_bmpIdStart + 9).scrx = srcX + __msg_9Grid_a
+    Bitmap(__msg_bmpIdStart + 9).scry = srcY + __msg_9Grid_b
     Return 1
 End Script
 
@@ -1368,6 +1392,7 @@ Script __textbox_inner_setAvatar()
 End Script
 
 Script __textbox_inner_cleanBg(Return Integer)
+    __animFac = -4
     If __isCreated = 0 Then
         Return 0
     End If
