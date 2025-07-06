@@ -491,6 +491,7 @@ End Script
 Script __txtBox_NewBmp()
     For __box_tempIA = 1 To 10 Step 1
         Call BMPCreate(__box_tempIA + __currBmpCnt + __box_bmpStart, __box_npc, 1, 0,     0, 0, 0, 0,     0, 0, 0, 0,     0, 0,     0, -1)
+        Bitmap(__box_tempIA + __currBmpCnt + __box_bmpStart).blendmode = 0
     Next
     __currBmpCnt += 10
 End Script
@@ -1373,6 +1374,16 @@ Script __textbox_inner_create(Return Integer)
     Bitmap(__msg_bmpIdStart + 7).zpos = __msg_defaultZpos
     Bitmap(__msg_bmpIdStart + 8).zpos = __msg_defaultZpos
     Bitmap(__msg_bmpIdStart + 9).zpos = __msg_defaultZpos
+    Bitmap(__msg_bmpIdStart).blendmode = 0
+    Bitmap(__msg_bmpIdStart + 1).blendmode = 0
+    Bitmap(__msg_bmpIdStart + 2).blendmode = 0
+    Bitmap(__msg_bmpIdStart + 3).blendmode = 0
+    Bitmap(__msg_bmpIdStart + 4).blendmode = 0
+    Bitmap(__msg_bmpIdStart + 5).blendmode = 0
+    Bitmap(__msg_bmpIdStart + 6).blendmode = 0
+    Bitmap(__msg_bmpIdStart + 7).blendmode = 0
+    Bitmap(__msg_bmpIdStart + 8).blendmode = 0
+    Bitmap(__msg_bmpIdStart + 9).blendmode = 0
     Return 1
 End Script
 
@@ -2016,6 +2027,7 @@ Script __prepareGraphicData_fromCache(content As String, id As Integer)
         Bitmap(__box_tempIE + __lBox_bmpIdStart).forecolor_r = __color_cache_r
         Bitmap(__box_tempIE + __lBox_bmpIdStart).forecolor_g = __color_cache_g
         Bitmap(__box_tempIE + __lBox_bmpIdStart).forecolor_b = __color_cache_b
+        Bitmap(__box_tempIE + __lBox_bmpIdStart).blendmode = 0
 
         __box_tempID = __box_tempID + TXT_GetCharSize(__box_tempIC) * __box_tempDA
         If __box_tempID > __box_tempIA Then
@@ -2046,6 +2058,10 @@ Script __prepareGraphicData_fromCache(content As String, id As Integer)
     Bitmap(__box_tempIE + 1 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
     Bitmap(__box_tempIE + 2 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
     Bitmap(__box_tempIE + 3 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
+    Bitmap(__box_tempIE + __lBox_bmpIdStart).blendmode = 0
+    Bitmap(__box_tempIE + 1 + __lBox_bmpIdStart).blendmode = 0
+    Bitmap(__box_tempIE + 2 + __lBox_bmpIdStart).blendmode = 0
+    Bitmap(__box_tempIE + 3 + __lBox_bmpIdStart).blendmode = 0
     __box_tempIE = __box_tempIE + 4
 
     ' 九宫格 - 左中 右中 上中 下中
@@ -2057,11 +2073,16 @@ Script __prepareGraphicData_fromCache(content As String, id As Integer)
     Bitmap(__box_tempIE + 1 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
     Bitmap(__box_tempIE + 2 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
     Bitmap(__box_tempIE + 3 + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
+    Bitmap(__box_tempIE + __lBox_bmpIdStart).blendmode = 0
+    Bitmap(__box_tempIE + 1 + __lBox_bmpIdStart).blendmode = 0
+    Bitmap(__box_tempIE + 2 + __lBox_bmpIdStart).blendmode = 0
+    Bitmap(__box_tempIE + 3 + __lBox_bmpIdStart).blendmode = 0
     __box_tempIE = __box_tempIE + 4
 
     ' 九宫格 - 中
     Call BMPCreate(__box_tempIE + __lBox_bmpIdStart, __lBox_9Grid_npcId, 0, 1,     __lBox_9Grid_a, __lBox_9Grid_b, __lBox_9Grid_w, __lBox_9Grid_h,     __lBox_9Grid_a + __offset_cache_x, __lBox_9Grid_b + __offset_cache_y, __box_tempDA / __lBox_9Grid_w, __box_tempDB / __lBox_9Grid_h,     0, 0,     0, -1)
     Bitmap(__box_tempIE + __lBox_bmpIdStart).zpos = __zpos_cache + 0.00001
+    Bitmap(__box_tempIE + __lBox_bmpIdStart).blendmode = 0
 End Script
 
 Script __clearCache()
