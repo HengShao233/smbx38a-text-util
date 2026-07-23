@@ -4,7 +4,7 @@ namespace FontAtlasGenerator;
 
 internal static partial class Program
 {
-    private static string GenCode(in Context curr, int xCnt, IReadOnlyDictionary<char, int> charIdMap)
+    private static string GenCode(in Context curr, int xCnt, IReadOnlyDictionary<long, int> charIdMap)
     {
         var code = CodeTemplate.S.Replace("{xCnt}", $"{xCnt}").Replace("{sizeX}", $"{curr.CharSize}");
 
@@ -25,11 +25,11 @@ internal static partial class Program
     private static void AppendLines<T>(
         StringBuilder sb,
         IReadOnlyList<T> offsets,
-        IReadOnlyDictionary<char, int> charIdMap,
-        Func<T, char> getC,
+        IReadOnlyDictionary<long, int> charIdMap,
+        Func<T, long> getC,
         Func<T, int> getRet)
     {
-        var seen = new HashSet<char>();
+        var seen = new HashSet<long>();
         var entries = new List<(int id, int ret)>();
         foreach (var offset in offsets)
         {
@@ -37,7 +37,7 @@ internal static partial class Program
             if (!seen.Add(c)) continue;
             int id;
             if (c <= 128)
-                id = c;
+                id = (int)c;
             else if (!charIdMap.TryGetValue(c, out id)) continue;
             entries.Add((id, getRet(offset)));
         }

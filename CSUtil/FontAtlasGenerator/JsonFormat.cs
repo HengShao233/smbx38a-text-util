@@ -127,9 +127,12 @@ internal static partial class Program
             {
                 if (off is not IReadOnlyList<dynamic> offData) continue;
                 if (offData.Count < 1) continue;
-                var c = offData[0] is string cStr && !string.IsNullOrEmpty(cStr)
-                    ? cStr[0]
-                    : offData[0] is double cDouble ? (char)(int)cDouble : '\0';
+                long c;
+                if (offData[0] is string cStr && !string.IsNullOrEmpty(cStr))
+                    c = CommonStandardHanzi.EnumerateCodePoints(cStr)[0];
+                else if (offData[0] is double cDouble)
+                    c = (long)cDouble;
+                else c = 0;
                 var x = 0;
                 var y = 0;
                 if (offData.Count > 1) x = offData[1] is double xDouble ? (int)xDouble : 0;
@@ -145,10 +148,13 @@ internal static partial class Program
             {
                 if (off is not IReadOnlyList<dynamic> offData) continue;
                 if (offData.Count < 1) continue;
-                var c = offData[0] is string cStr && !string.IsNullOrEmpty(cStr)
-                    ? cStr[0]
-                    : offData[0] is double cDouble ? (char)(int)cDouble : '\0';
-                if (c == '\0') continue;
+                long c;
+                if (offData[0] is string cStr && !string.IsNullOrEmpty(cStr))
+                    c = CommonStandardHanzi.EnumerateCodePoints(cStr)[0];
+                else if (offData[0] is double cDouble)
+                    c = (long)cDouble;
+                else c = 0;
+                if (c == 0) continue;
                 var x = offData[1] is double xDouble ? (int)xDouble : 0;
                 offsets ??= new List<Offset>();
                 offsets.Add(new Offset { C = c, Y = x });
@@ -161,10 +167,13 @@ internal static partial class Program
             {
                 if (size is not IReadOnlyList<dynamic> offData) continue;
                 if (offData.Count < 1) continue;
-                var c = offData[0] is string cStr && !string.IsNullOrEmpty(cStr)
-                    ? cStr[0]
-                    : offData[0] is double cDouble ? (char)(int)cDouble : '\0';
-                if (c == '\0') continue;
+                long c;
+                if (offData[0] is string cStr && !string.IsNullOrEmpty(cStr))
+                    c = CommonStandardHanzi.EnumerateCodePoints(cStr)[0];
+                else if (offData[0] is double cDouble)
+                    c = (long)cDouble;
+                else c = 0;
+                if (c == 0) continue;
                 var x = offData[1] is double xDouble ? (int)xDouble : 0;
                 sizes ??= new List<Size>();
                 sizes.Add(new Size { C = c, X = x });
@@ -221,7 +230,7 @@ internal static partial class Program
                 var d = offsets[i];
                 if (i != 0) sb.Append(",\n");
                 sb.Append("    [\"");
-                sb.Append(d.C).Append('"').Append($", {d.X}, {d.Y}]");
+                sb.Append(char.ConvertFromUtf32((int)d.C)).Append('"').Append($", {d.X}, {d.Y}]");
             }
 
             sb.Append("\n  ]");
@@ -239,7 +248,7 @@ internal static partial class Program
                 var d = offsets[i];
                 if (i != 0) sb.Append(",\n");
                 sb.Append("    [\"");
-                sb.Append(d.C).Append('"').Append($", {d.Y}]");
+                sb.Append(char.ConvertFromUtf32((int)d.C)).Append('"').Append($", {d.Y}]");
             }
             sb.Append("\n  ]");
             return sb.ToString();
@@ -256,7 +265,7 @@ internal static partial class Program
                 var d = offsets[i];
                 if (i != 0) sb.Append(",\n");
                 sb.Append("    [\"");
-                sb.Append(d.C).Append('"').Append($", {d.X}]");
+                sb.Append(char.ConvertFromUtf32((int)d.C)).Append('"').Append($", {d.X}]");
             }
             sb.Append("\n  ]");
             return sb.ToString();

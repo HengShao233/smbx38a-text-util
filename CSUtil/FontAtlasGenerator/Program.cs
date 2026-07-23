@@ -9,13 +9,13 @@ internal static partial class Program
 
     private struct Offset
     {
-        public char C;
+        public long C;
         public int Y;
     }
 
     private struct Size
     {
-        public char C;
+        public long C;
         public int X;
     }
 
@@ -28,7 +28,7 @@ internal static partial class Program
         public int CanvasSize = 0;
         public int CharSize = 0;
         public bool IsAdditionalCharSet = true;
-        public IReadOnlyList<char> Content = Array.Empty<char>();
+        public IReadOnlyList<long> Content = Array.Empty<long>();
         public IReadOnlyList<string>? Scripts = null;
         public bool IsOutputUtil = false;
         public bool IsScanFolder = false;
@@ -83,6 +83,7 @@ internal static partial class Program
             var score = 0;
             var curr = new Context();
             var targetJson = "";
+            var isFound = false;
             foreach (var json in jsonList)
             {
                 using var f = File.Open(json, FileMode.Open, FileAccess.Read);
@@ -91,9 +92,9 @@ internal static partial class Program
                 curr = context;
                 score = sc;
                 targetJson = json;
+                isFound = true;
             }
 
-            var isFound = false;
             if (!string.IsNullOrEmpty(targetJson))
             {
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -105,7 +106,7 @@ internal static partial class Program
                 if (File.Exists($"./.{jsonName}.json"))
                 {
                     using var f = File.Open($"./.{jsonName}.json", FileMode.Open, FileAccess.Read);
-                    score = CheckJson(f, out var context);
+                    CheckJson(f, out var context);
                     isFound = true;
                     curr = context;
 
@@ -116,7 +117,7 @@ internal static partial class Program
             }
 
             var j = BuildJson(curr);
-            if (!isFound || score <= 1)
+            if (!isFound)
             {
                 using var ff = File.Open($"./.{jsonName}.json", FileMode.Create, FileAccess.Write);
                 using var sw = new StreamWriter(ff);
@@ -149,7 +150,7 @@ internal static partial class Program
                     curr.CanvasSize,
                     curr.CharSize,
                     curr.IsAdditionalCharSet
-                        ? new AtlasGen.MultipleListAgent<char>(new[]
+                        ? new AtlasGen.MultipleListAgent<long>(new[]
                         {
                             new AtlasGen.StringListAgent(CommonStandardHanzi.S),
                             curr.Content
@@ -169,18 +170,14 @@ internal static partial class Program
                 Console.WriteLine(" ");
             }
 
-            for (var i = 0; i < curr.Content.Count; i++)
-            {
-                var addChar = curr.Content[i];
-                CommonStandardHanzi.LoadAdditionalChar(addChar,
-                    curr.IsAdditionalCharSet ? CommonStandardHanzi.S.Length + i : i, curr.IsAdditionalCharSet);
-            }
+            // 运行时根据 ctx.Content 动态构建字符映射，保证与 atlas 生成 (151-157 行) 的字符集一致。
+            var charIdMap = BuildCharIdMap(curr.Content, curr.IsAdditionalCharSet);
 
             if (curr.IsScanFolder)
                 EnumModifySmt(Directory.EnumerateFiles(".", "*.smt", SearchOption.TopDirectoryOnly));
             else EnumModifySmt(curr.Scripts == null ? smtList : smtList.Concat(curr.Scripts));
 
-            static void EnumModifySmt(IEnumerable<string> l)
+            void EnumModifySmt(IEnumerable<string> l)
             {
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.WriteLine("-------------------------------");
@@ -194,7 +191,7 @@ internal static partial class Program
 
                     var successCnt = (uint)0;
                     while (!s.EndOfStream)
-                        sb.Append(StringEncoder.ReplaceALine(s.ReadLine(), CommonStandardHanzi.CharIdMap, ref successCnt)).Append('\n');
+                        sb.Append(StringEncoder.ReplaceALine(s.ReadLine(), charIdMap, ref successCnt)).Append('\n');
                     if (sb.Length > 0) sb.Length--;
 
                     f.Close();
@@ -216,11 +213,27 @@ internal static partial class Program
                 Console.WriteLine("-------------------------------");
             }
 
+            IReadOnlyDictionary<long, int> BuildCharIdMap(IReadOnlyList<long> content, bool isAdditional)
+            {
+                var map = new Dictionary<long, int>();
+                var offset = 0;
+                if (isAdditional)
+                {
+                    var sCps = CommonStandardHanzi.SCodepoints;
+                    for (var idx = 0; idx < sCps.Count; idx++)
+                        map[sCps[idx]] = idx;
+                    offset = sCps.Count;
+                }
+                for (var i = 0; i < content.Count; i++)
+                    map[content[i]] = offset + i;
+                return map;
+            }
+
             if (curr.IsOutputUtil)
             {
                 using var ff = File.Open("./TxtDecoder.smt", FileMode.Create, FileAccess.Write);
                 using var sw = new StreamWriter(ff);
-                sw.Write(GenCode(curr, xCnt, CommonStandardHanzi.CharIdMap));
+                sw.Write(GenCode(curr, xCnt, charIdMap));
             }
         }
         catch (Exception e)

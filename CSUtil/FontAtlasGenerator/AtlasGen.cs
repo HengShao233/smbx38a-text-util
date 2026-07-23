@@ -5,15 +5,15 @@ using System.Drawing.Text;
 
 namespace FontAtlasGenerator;
 
-public class AtlasGen
+public static class AtlasGen
 {
     public struct OffsetData
     {
-        public char C;
+        public long C;
         public int X;
         public int Y;
     }
-    public static readonly Dictionary<char, OffsetData> SingleCharOffset = new();
+    public static readonly Dictionary<long, OffsetData> SingleCharOffset = new();
 
     public class MultipleListAgent<T> : IReadOnlyList<T>
     {
@@ -43,23 +43,24 @@ public class AtlasGen
         {
             // ReSharper disable once LoopCanBeConvertedToQuery
             foreach (var list in _lists)
-            foreach (var item in list)
-                yield return item;
+                foreach (var item in list)
+                    yield return item;
         }
 
         private readonly IReadOnlyList<T>[] _lists;
     }
 
-    public class StringListAgent : IReadOnlyList<char>
+    public class StringListAgent : IReadOnlyList<long>
     {
-        public int Count => _s.Length;
-        public char this[int index] => _s[index];
+        public int Count => _cps.Count;
+        public long this[int index] => _cps[index];
 
-        public StringListAgent(string s) => _s = s;
-        public IEnumerator<char> GetEnumerator() => _s.GetEnumerator();
+        public StringListAgent(string s) => _cps = CommonStandardHanzi.EnumerateCodePoints(s);
+
+        public IEnumerator<long> GetEnumerator() => _cps.GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        private readonly string _s;
+        private readonly List<long> _cps;
     }
 
     public static int Gen(
@@ -69,7 +70,7 @@ public class AtlasGen
         (float x, float y) offset,
         int canvasSize,
         int charSize,
-        IReadOnlyList<char> s,
+        IReadOnlyList<long> s,
         sbyte fontRenderType)
     {
         var collection = new PrivateFontCollection();
@@ -88,10 +89,11 @@ public class AtlasGen
 
         for (var idx = 0; idx <= 127; idx++)
         {
+            // ReSharper disable once PossibleLossOfFraction
             var y = idx / xCnt * charSize + offset.y;
             var x = idx % xCnt * charSize + offset.x;
 
-            if (SingleCharOffset.TryGetValue((char)idx, out var v))
+            if (SingleCharOffset.TryGetValue(idx, out var v))
             {
                 x += v.X;
                 y += v.Y;
@@ -101,14 +103,16 @@ public class AtlasGen
 
         for (var idx = 128; idx - 128 < s.Count; idx++)
         {
+            // ReSharper disable once PossibleLossOfFraction
             var y = idx / xCnt * charSize + offset.y;
             var x = idx % xCnt * charSize + offset.x;
-            if (SingleCharOffset.TryGetValue(s[idx - 128], out var v))
+            var cp = s[idx - 128];
+            if (SingleCharOffset.TryGetValue(cp, out var v))
             {
                 x += v.X;
                 y += v.Y;
             }
-            gfx.DrawString(s[idx - 128].ToString(), font, brush, new PointF(x, y));
+            gfx.DrawString(char.ConvertFromUtf32((int)cp), font, brush, new PointF(x, y));
         }
 
         gfx.Dispose();
