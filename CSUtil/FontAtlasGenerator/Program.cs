@@ -5,7 +5,7 @@ namespace FontAtlasGenerator;
 
 internal static partial class Program
 {
-    private const string Version = "2.2.1";
+    private const string Version = "2.2.2";
 
     private struct Offset
     {
@@ -36,6 +36,8 @@ internal static partial class Program
         public sbyte FontRenderType = -1;
         public IReadOnlyList<Offset> Offsets = Array.Empty<Offset>();
         public IReadOnlyList<Size> Sizes = Array.Empty<Size>();
+
+        public string? FormattedSourceChatSet = null;
 
         public Context() {}
     }

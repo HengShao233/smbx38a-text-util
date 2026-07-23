@@ -53,9 +53,45 @@ internal static partial class Program
             else canvasSize = 2048;
             ctx.CanvasSize = (int)canvasSize;
 
-            var charSet = objDict.TryGetValue("char-set", out var v7) ? v7 as string : null;
-            if (charSet != null) score++;
-            ctx.Content = charSet == null ? Array.Empty<char>() : new AtlasGen.StringListAgent(charSet);
+            var charSetObj = objDict.TryGetValue("char-set", out var v7) ? v7 : null;
+            var formattedSb = new StringBuilder();
+            string charSetStr;
+            switch (charSetObj)
+            {
+                case string charSetSingle:
+                    charSetStr = ResolveCharSetString(charSetSingle);
+                    // 保留源表示（路径或字面量），送回给用户
+                    formattedSb.Append('"').Append(EscapeJson(charSetSingle)).Append('"');
+                    score++;
+                    break;
+                case IReadOnlyList<dynamic> charSetArr:
+                {
+                    var sb = new StringBuilder();
+                    List<string> validItems = new();
+                    foreach (var item in charSetArr)
+                    {
+                        if (item is not string itemStr) continue;
+                        sb.Append(ResolveCharSetString(itemStr));
+                        validItems.Add(itemStr);
+                    }
+                    charSetStr = sb.ToString();
+                    // 保留源列表（剔除无效元素），整理好缩进
+                    formattedSb.Append("[\n");
+                    for (var i = 0; i < validItems.Count; i++)
+                    {
+                        if (i != 0) formattedSb.Append(",\n");
+                        formattedSb.Append("    \"").Append(EscapeJson(validItems[i])).Append('"');
+                    }
+                    formattedSb.Append("\n  ]");
+                    score++;
+                    break;
+                }
+                default:
+                    charSetStr = "";
+                    break;
+            }
+            ctx.Content = new AtlasGen.StringListAgent(charSetStr);
+            ctx.FormattedSourceChatSet = charSetObj == null ? null : formattedSb.ToString();
 
             var isAdditionCharSet = !objDict.TryGetValue("addition-char-set", out var v8) || v8 is not bool b || b;
             ctx.IsAdditionalCharSet = isAdditionCharSet;
@@ -138,6 +174,32 @@ internal static partial class Program
             ctx.FontRenderType = objDict.TryGetValue("font-render-type", out var v15) ? v15 is double dType ? (sbyte)dType : (sbyte)-1 : (sbyte)-1;
 
             return score;
+
+            static string ResolveCharSetString(string s)
+            {
+                if (!s.StartsWith("file://", StringComparison.OrdinalIgnoreCase)) return s;
+                var filePath = s["file://".Length..];
+                try { return File.Exists(filePath) ? File.ReadAllText(filePath) : ""; }
+                catch (Exception e) { Console.Error.WriteLine(e); return ""; }
+            }
+
+            static string EscapeJson(string s)
+            {
+                var sb = new StringBuilder();
+                foreach (var c in s)
+                {
+                    switch (c)
+                    {
+                        case '"': sb.Append("\\\""); break;
+                        case '\\': sb.Append(@"\\"); break;
+                        case '\n': sb.Append("\\n"); break;
+                        case '\r': sb.Append("\\r"); break;
+                        case '\t': sb.Append("\\t"); break;
+                        default: sb.Append(c); break;
+                    }
+                }
+                return sb.ToString();
+            }
         }
         catch (Exception e)
         {
@@ -200,6 +262,7 @@ internal static partial class Program
             return sb.ToString();
         }
 
+#pragma warning disable CA1416
         var jsonSb = new StringBuilder();
         jsonSb.Append("{\n  // font file").Append('\n');
         jsonSb.Append($"  \"font-path\": \"{curr.FontPath}\",").Append('\n');
@@ -212,12 +275,13 @@ internal static partial class Program
         jsonSb.Append($"  // render conf\n  \"char-size\": {BuildCharSize(curr.Sizes)},").Append('\n');
         jsonSb.Append($"  // render conf\n  \"canvas-size\": {curr.CanvasSize},").Append('\n');
         jsonSb.Append($"  // render conf\n  \"font-render-type\": {curr.FontRenderType}, // {(TextRenderingHint)curr.FontRenderType}").Append('\n');
-        jsonSb.Append($"  // ex char set\n  \"char-set\": \"\",").Append('\n');
+        jsonSb.Append($"  // ex char set\n  \"char-set\": {curr.FormattedSourceChatSet ?? "\"\""},").Append('\n');
         jsonSb.Append($"  // is char set additional\n  \"addition-char-set\": {(curr.IsAdditionalCharSet ? "true" : "false")},").Append('\n');
         jsonSb.Append($"  // scripts need to transcode\n  \"script\": [],").Append('\n');
         jsonSb.Append($"  // is scan folder\n  \"scan-folder-script\": {(curr.IsScanFolder ? "true" : "false")},").Append('\n');
         jsonSb.Append($"  // need to gen util\n  \"output-util\": {(curr.IsOutputUtil ? "true" : "false")}").Append('\n');
         jsonSb.Append('}').Append('\n');
         return jsonSb.ToString();
+#pragma warning restore CA1416
     }
 }
