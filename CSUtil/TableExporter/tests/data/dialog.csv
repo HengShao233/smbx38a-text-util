@@ -1,0 +1,5 @@
+id:string,speaker:string,line:text,portrait:int
+greet,Mario,It's-a me!,1
+warn,Luigi,Careful! Something is ahead.,2
+boss,Bowser,You will never win.,3
+cn,Toad,你好，欢迎来到这个关卡！,4

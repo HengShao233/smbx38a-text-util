@@ -23,7 +23,7 @@ public static partial class StringEncoder
             var i = 0;
             while (i < src.Length)
             {
-                if (Rune.DecodeFromUtf16(src.Slice(i), out var rune, out var consumed) == System.Buffers.OperationStatus.Done)
+                if (Rune.DecodeFromUtf16(src[i..], out var rune, out var consumed) == System.Buffers.OperationStatus.Done)
                 {
                     cps.Add(rune.Value);
                     i += consumed;

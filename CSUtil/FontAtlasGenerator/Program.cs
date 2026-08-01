@@ -173,6 +173,16 @@ internal static partial class Program
             // 运行时根据 ctx.Content 动态构建字符映射，保证与 atlas 生成 (151-157 行) 的字符集一致。
             var charIdMap = BuildCharIdMap(curr.Content, curr.IsAdditionalCharSet);
 
+            // 仅转码模式：传入了 .smt 但当前没有可用字体图集时，跳过图集生成，
+            // 直接对 $"..." 字面量做字模转码。注意：此模式下 text 列运行时仍需要
+            // 一份与图集匹配的 TxtDecoder.smt 才能真正还原字形。
+            if (smtList.Count > 0 && !File.Exists(curr.FontPath))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("[transcode-only] 未提供字体图集，仅对文本做转码（不生成图集）");
+                Console.ForegroundColor = ConsoleColor.White;
+            }
+
             if (curr.IsScanFolder)
                 EnumModifySmt(Directory.EnumerateFiles(".", "*.smt", SearchOption.TopDirectoryOnly));
             else EnumModifySmt(curr.Scripts == null ? smtList : smtList.Concat(curr.Scripts));
@@ -242,8 +252,8 @@ internal static partial class Program
             Console.WriteLine(e);
         }
 
+        // 注意：不再调用 Console.ReadKey()，以避免在 stdio 被重定向（如被子进程调用）
+        // 时抛 InvalidOperationException 导致进程崩溃。转码/图集生成完成后直接退出。
         Console.ForegroundColor = ConsoleColor.White;
-        Console.WriteLine("please press any ket to exit...");
-        Console.ReadKey();
     }
 }

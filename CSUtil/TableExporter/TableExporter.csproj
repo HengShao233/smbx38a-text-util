@@ -1,0 +1,62 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AssemblyName>TableExporter</AssemblyName>
+        <RootNamespace>TableExporter</RootNamespace>
+        <InvariantGlobalization>true</InvariantGlobalization>
+
+        <!-- 单文件发布配置, 与 FontAtlasGenerator 保持一致 -->
+        <PublishSingleFile>true</PublishSingleFile>
+        <SelfContained>true</SelfContained>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+        <DebugType>none</DebugType>
+        <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="DocumentFormat.OpenXml" Version="3.1.0"/>
+    </ItemGroup>
+
+    <!--
+      Debug 构建时: 先 build FontAtlasGenerator, 再把产物拷贝到本工程输出目录,
+      保证运行期一定能找到 FontAtlasGenerator.exe (text 类型转码依赖它).
+
+      这里刻意用 Exec 调用 dotnet build 而非 ProjectReference:
+      本工程是 self-contained 单文件发布, 而 FontAtlasGenerator 不是,
+      直接 ProjectReference 会触发 NETSDK1150。二者只需进程级协作, 无需程序集引用。
+    -->
+    <PropertyGroup>
+        <_FagProject>$(MSBuildThisFileDirectory)..\FontAtlasGenerator\FontAtlasGenerator.csproj</_FagProject>
+        <_FagOutDir>$(MSBuildThisFileDirectory)..\FontAtlasGenerator\bin\FagForExporter\</_FagOutDir>
+    </PropertyGroup>
+
+    <Target Name="BuildFontAtlasGeneratorForDebug" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+        <Exec Command="dotnet build &quot;$(_FagProject)&quot; -c Release -o &quot;$(_FagOutDir)&quot; --nologo -v m"
+              ContinueOnError="true">
+            <Output TaskParameter="ExitCode" PropertyName="_FagExitCode"/>
+        </Exec>
+
+        <ItemGroup>
+            <_FagArtifacts Include="$(_FagOutDir)**\*"/>
+        </ItemGroup>
+
+        <Copy SourceFiles="@(_FagArtifacts)"
+              DestinationFolder="$(OutDir)%(RecursiveDir)"
+              SkipUnchangedFiles="true"
+              Condition="'$(_FagExitCode)' == '0'"
+              ContinueOnError="true"/>
+
+        <Message Importance="high"
+                 Condition="'$(_FagExitCode)' == '0'"
+                 Text="[TableExporter] FontAtlasGenerator 已构建并拷贝到 $(OutDir)"/>
+        <Warning Condition="'$(_FagExitCode)' != '0'"
+                 Text="[TableExporter] FontAtlasGenerator 构建失败, text 列转码将不可用。"/>
+    </Target>
+
+</Project>

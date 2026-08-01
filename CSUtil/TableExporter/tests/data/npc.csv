@@ -1,0 +1,13 @@
+[npc]
+id,name,hp,speed,boss,drops,tags,partner,desc
+s,s,i,i,i,i[|],s[;],s,s
+goomba,Goomba,1,250,0,1|2,ground;weak,koopa,Goomba enemy
+koopa,Koopa Troopa,2,175,0,3|4|5,ground;shell,goopa,Shell kicker
+piranha,Piranha Plant,3,0,0,,plant;stationary,,Bite plant
+bowser,Bowser,20,325,1,10|20|30,boss;fire;heavy,koopa,Turtle boss
+lakitu,Lakitu,2,450,0,7,air;thrower,spiny,Cloud rider
+spiny,Spiny,1,200,0,2,ground;spiky,lakitu,Spike shell
+# 这一行是注释, 会被忽略
+boo,Boo,-1,125,0,,ghost;shy,,Shy ghost
+thwomp,Thwomp,-1,50,0,,stone;crusher,,Crush block
+hammerbro,Hammer Bro,3,225,0,5|6,ground;thrower,koopa,Hammer thrower

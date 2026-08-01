@@ -7,30 +7,54 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FontAtlasGenerator", "FontA
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AscBin", "binary-ascii\AscBin\AscBin\AscBin.csproj", "{75003172-5A76-4EFC-8C86-CA04CABECBCC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TableExporter", "TableExporter\TableExporter.csproj", "{8CEC473B-3CF4-4C18-B74C-FD711580630E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
 		Release|Any CPU = Release|Any CPU
 		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{EBEBEE35-8822-4DF9-909D-CE0D6231C1DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{EBEBEE35-8822-4DF9-909D-CE0D6231C1DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EBEBEE35-8822-4DF9-909D-CE0D6231C1DD}.Debug|x64.ActiveCfg = Debug|x64
 		{EBEBEE35-8822-4DF9-909D-CE0D6231C1DD}.Debug|x64.Build.0 = Debug|x64
+		{EBEBEE35-8822-4DF9-909D-CE0D6231C1DD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EBEBEE35-8822-4DF9-909D-CE0D6231C1DD}.Debug|x86.Build.0 = Debug|Any CPU
 		{EBEBEE35-8822-4DF9-909D-CE0D6231C1DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EBEBEE35-8822-4DF9-909D-CE0D6231C1DD}.Release|Any CPU.Build.0 = Release|Any CPU
 		{EBEBEE35-8822-4DF9-909D-CE0D6231C1DD}.Release|x64.ActiveCfg = Release|x64
 		{EBEBEE35-8822-4DF9-909D-CE0D6231C1DD}.Release|x64.Build.0 = Release|x64
+		{EBEBEE35-8822-4DF9-909D-CE0D6231C1DD}.Release|x86.ActiveCfg = Release|Any CPU
+		{EBEBEE35-8822-4DF9-909D-CE0D6231C1DD}.Release|x86.Build.0 = Release|Any CPU
 		{75003172-5A76-4EFC-8C86-CA04CABECBCC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{75003172-5A76-4EFC-8C86-CA04CABECBCC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{75003172-5A76-4EFC-8C86-CA04CABECBCC}.Debug|x64.ActiveCfg = Debug|Any CPU
 		{75003172-5A76-4EFC-8C86-CA04CABECBCC}.Debug|x64.Build.0 = Debug|Any CPU
+		{75003172-5A76-4EFC-8C86-CA04CABECBCC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{75003172-5A76-4EFC-8C86-CA04CABECBCC}.Debug|x86.Build.0 = Debug|Any CPU
 		{75003172-5A76-4EFC-8C86-CA04CABECBCC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{75003172-5A76-4EFC-8C86-CA04CABECBCC}.Release|Any CPU.Build.0 = Release|Any CPU
 		{75003172-5A76-4EFC-8C86-CA04CABECBCC}.Release|x64.ActiveCfg = Release|Any CPU
 		{75003172-5A76-4EFC-8C86-CA04CABECBCC}.Release|x64.Build.0 = Release|Any CPU
+		{75003172-5A76-4EFC-8C86-CA04CABECBCC}.Release|x86.ActiveCfg = Release|Any CPU
+		{75003172-5A76-4EFC-8C86-CA04CABECBCC}.Release|x86.Build.0 = Release|Any CPU
+		{8CEC473B-3CF4-4C18-B74C-FD711580630E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8CEC473B-3CF4-4C18-B74C-FD711580630E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8CEC473B-3CF4-4C18-B74C-FD711580630E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8CEC473B-3CF4-4C18-B74C-FD711580630E}.Debug|x64.Build.0 = Debug|Any CPU
+		{8CEC473B-3CF4-4C18-B74C-FD711580630E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8CEC473B-3CF4-4C18-B74C-FD711580630E}.Debug|x86.Build.0 = Debug|Any CPU
+		{8CEC473B-3CF4-4C18-B74C-FD711580630E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8CEC473B-3CF4-4C18-B74C-FD711580630E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8CEC473B-3CF4-4C18-B74C-FD711580630E}.Release|x64.ActiveCfg = Release|Any CPU
+		{8CEC473B-3CF4-4C18-B74C-FD711580630E}.Release|x64.Build.0 = Release|Any CPU
+		{8CEC473B-3CF4-4C18-B74C-FD711580630E}.Release|x86.ActiveCfg = Release|Any CPU
+		{8CEC473B-3CF4-4C18-B74C-FD711580630E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
