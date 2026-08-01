@@ -54,15 +54,20 @@ def find_exporter(explicit: str | None) -> str:
     sys.exit('[x] 找不到 TableExporter.exe，请先 dotnet build 或 dotnet publish')
 
 
-def export_table(exe: str, out_dir: str) -> str:
+def export_table(exe: str, out_dir: str, font_atlas: str | None, font_config: str | None) -> str:
     """跑一次导表，返回生成的 smt 路径。"""
     csv_path = os.path.join(HERE, 'data', 'npc.csv')
     os.makedirs(out_dir, exist_ok=True)
 
+    cmd = [exe, csv_path, '-o', out_dir]
+    if font_atlas:
+        cmd += ['--font-atlas', font_atlas]
+    if font_config:
+        cmd += ['--font-config', font_config]
+
     print(f'[>] 导表: {csv_path}')
     proc = subprocess.run(
-        [exe, csv_path, '-o', out_dir],
-        capture_output=True, text=True, encoding='utf-8', errors='replace')
+        cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
 
     if proc.returncode != 0:
         print(proc.stdout)
@@ -106,6 +111,10 @@ def main() -> None:
     ap.add_argument('--exe', help='TableExporter.exe 路径')
     ap.add_argument('--out', default=os.path.join(CSUTIL, 'build', 'table_test'),
                     help='输出目录')
+    ap.add_argument('--font-atlas', default=os.path.join(CSUTIL, 'build', 'FontAtlasGenerator v2.2.2.exe'),
+                    help='FontAtlasGenerator.exe 路径')
+    ap.add_argument('--font-config', default=os.path.join(CSUTIL, 'build', '.cfg.json'),
+                    help='字体图集配置 json')
     args = ap.parse_args()
 
     exe = find_exporter(args.exe)
@@ -114,7 +123,7 @@ def main() -> None:
     out_dir = os.path.abspath(args.out)
     os.makedirs(out_dir, exist_ok=True)
 
-    table_smt = export_table(exe, out_dir)
+    table_smt = export_table(exe, out_dir, args.font_atlas, args.font_config)
 
     # 把测试脚本一并拷到输出目录，方便手工查看/改动后重跑。
     shutil.copy2(os.path.join(HERE, 'table_test.smt'), out_dir)

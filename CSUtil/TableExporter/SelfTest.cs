@@ -598,7 +598,7 @@ public static class SelfTest
         var ids = table.Rows.Select(r => r.Id).ToList();
         var tableSize = PerfectHash.NextPrime(Math.Max(ids.Count * 16, ids.Count + 64));
         var hash = PerfectHash.Build(ids, table.Name, tableSize);
-        var packed = DataPacker.Pack(table, hash, _ => "PAYLOAD", refResolver);
+        var packed = DataPacker.Pack(table, hash, raw => raw, refResolver);
         var smt = new TeaScriptEmitter(packed).Emit();
         return (hash, packed, smt);
     }
@@ -773,16 +773,19 @@ public static class SelfTest
             new() { Name = "desc", Type = FieldType.String },
             new() { Name = "val", Type = FieldType.Int },
             new() { Name = "items", Type = FieldType.Int, IsArray = true, ArraySeparator = "," },
+            new() { Name = "story", Type = FieldType.Text },
         };
         var rows = new List<RowData>();
         var rng = new Random(42);
-        for (int i = 0; i < 500; i++)
+        for (int i = 0; i < 800; i++)
         {
             // 生成较长的 desc 字符串以触发多 chunk
             string desc = new string('X', 200 + rng.Next(100)) + i;
             int itemCount = rng.Next(5);
             var itemParts = new List<string>();
             for (int j = 0; j < itemCount; j++) itemParts.Add((rng.Next(2000) - 1000).ToString());
+            // text 类型: 模拟 payload（FontAtlasGenerator 转码后的 A 串）
+            string storyPayload = "PAYLOAD_" + i + "_" + new string('A', 50 + rng.Next(50));
             rows.Add(new RowData
             {
                 Id = $"entry{i:D4}",
@@ -793,6 +796,7 @@ public static class SelfTest
                     ["desc"] = desc,
                     ["val"] = (rng.Next(10000) - 5000).ToString(),
                     ["items"] = string.Join(",", itemParts),
+                    ["story"] = storyPayload,
                 },
             });
         }
@@ -800,7 +804,7 @@ public static class SelfTest
         var (hash, packed, smt) = BuildAndEmit(table, _ => 0);
         var sim = TeaScriptSimulator.Parse(smt, table, hash);
 
-        Check("sim 超级大表 chunk>4", packed.DataChunks.Count > 4, $"只有 {packed.DataChunks.Count} 个 chunk");
+        Check("sim 超级大表 chunk>8", packed.DataChunks.Count > 8, $"只有 {packed.DataChunks.Count} 个 chunk");
         Check("sim 超级大表 dataMap>=1", packed.DataMaps.Count >= 1);
 
         int ok = 0;
@@ -810,7 +814,8 @@ public static class SelfTest
             int expectedVal = int.Parse(row.Cells["val"]);
             long actualVal = sim.GetInt("val");
             string actualDesc = sim.GetString("desc");
-            if (actualVal == expectedVal && actualDesc == row.Cells["desc"])
+            string actualStory = sim.GetString("story");
+            if (actualVal == expectedVal && actualDesc == row.Cells["desc"] && actualStory == row.Cells["story"])
             {
                 // 检查数组
                 var expectedItems = string.IsNullOrEmpty(row.Cells["items"])
@@ -832,7 +837,7 @@ public static class SelfTest
                 if (arrOk) ok++;
             }
         }
-        Check("sim 500行全部往返一致", ok == 500, $"只有 {ok}/500 一致");
+        Check("sim 800行全部往返一致(含text)", ok == 800, $"只有 {ok}/800 一致");
     }
 
     private static void TestSimulatorMissAndError()

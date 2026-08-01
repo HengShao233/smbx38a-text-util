@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Text.Json;
 
 namespace TableExporter;
 
@@ -81,13 +82,9 @@ public static class Program
             {
                 if (string.IsNullOrEmpty(raw)) return "";
                 if (!hasText) return raw; // 无 text 列时不会进入此分支
-                if (string.IsNullOrWhiteSpace(options.FontConfigPath))
-                {
-                    throw new ExportException(
-                        $"[{table.Name}] 存在 text 列，但未通过 --font-config 指定字体图集配置");
-                }
+                // --font-config 未指定时，FontAtlasBridge 自动使用空配置（仅转码模式，不需要字体图集）
                 Console.WriteLine($"    调用 FontAtlasGenerator 转码文本: {raw}");
-                return bridge.Value.TranscodeOne(raw, options.FontConfigPath!);
+                return bridge.Value.TranscodeOne(raw, options.FontConfigPath);
             }
 
             int RefResolver(string raw)
@@ -186,6 +183,12 @@ public sealed class CliOptions
 
         if (args.Length == 0)
         {
+            // 无参数（双击启动）：尝试从同目录 .cfg.json 读取默认配置
+            if (TryLoadFromConfig(o))
+            {
+                return o;
+            }
+
             o.ShowHelp = true;
             return o;
         }
@@ -234,6 +237,130 @@ public sealed class CliOptions
         return o;
     }
 
+    /// <summary>
+    /// 从 exe 同目录下的 .cfg.json 读取默认配置。
+    /// 支持 table (字符串或数组, 文件/目录路径) 和 table-output (输出目录)。
+    /// 也支持 font-atlas 和 font-config 的相对路径。
+    /// </summary>
+    private static bool TryLoadFromConfig(CliOptions o)
+    {
+        var exeDir = AppContext.BaseDirectory;
+        var cfgPath = Path.Combine(exeDir, ".cfg.json");
+        if (!File.Exists(cfgPath)) return false;
+
+        string jsonText;
+        try
+        {
+            jsonText = File.ReadAllText(cfgPath);
+        }
+        catch
+        {
+            return false;
+        }
+
+        // 宽松解析：去掉注释（cfg.json 含 // 注释）
+        jsonText = StripJsonComments(jsonText);
+
+        using var doc = JsonDocument.Parse(jsonText);
+        var root = doc.RootElement;
+
+        // table: 字符串或数组
+        if (root.TryGetProperty("table", out var tableEl))
+        {
+            if (tableEl.ValueKind == JsonValueKind.String)
+            {
+                var p = tableEl.GetString()!;
+                o.Inputs.Add(ResolvePath(exeDir, p));
+            }
+            else if (tableEl.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in tableEl.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.String)
+                    {
+                        var p = item.GetString()!;
+                        o.Inputs.Add(ResolvePath(exeDir, p));
+                    }
+                }
+            }
+        }
+
+        // table-output: 输出目录
+        if (root.TryGetProperty("table-output", out var outEl) && outEl.ValueKind == JsonValueKind.String)
+        {
+            o.OutputDir = ResolvePath(exeDir, outEl.GetString()!);
+        }
+
+        // font-atlas: FontAtlasGenerator exe 路径
+        if (root.TryGetProperty("font-atlas-gen-exe", out var faEl) && faEl.ValueKind == JsonValueKind.String)
+        {
+            o.FontAtlasPath = ResolvePath(exeDir, faEl.GetString()!);
+        }
+
+        // font-config: 字体配置 json 路径（默认就是 .cfg.json 本身）
+        o.FontConfigPath ??= cfgPath;
+
+        // prefix
+        if (root.TryGetProperty("table-prefix", out var pfEl) && pfEl.ValueKind == JsonValueKind.String)
+        {
+            o.Prefix = pfEl.GetString();
+        }
+
+        return o.Inputs.Count > 0;
+    }
+
+    /// <summary>把相对路径解析为相对于 exe 目录的绝对路径。</summary>
+    private static string ResolvePath(string baseDir, string path)
+    {
+        return Path.IsPathRooted(path) ? path : Path.GetFullPath(Path.Combine(baseDir, path));
+    }
+
+    /// <summary>去掉 JSON 中的 // 行注释（FontAtlasGenerator 的 cfg.json 含注释）。</summary>
+    private static string StripJsonComments(string json)
+    {
+        var sb = new StringBuilder(json.Length);
+        bool inString = false;
+        bool escaped = false;
+        for (int i = 0; i < json.Length; i++)
+        {
+            char c = json[i];
+
+            if (escaped)
+            {
+                sb.Append(c);
+                escaped = false;
+                continue;
+            }
+
+            if (c == '\\' && inString)
+            {
+                sb.Append(c);
+                escaped = true;
+                continue;
+            }
+
+            if (c == '"')
+            {
+                inString = !inString;
+                sb.Append(c);
+                continue;
+            }
+
+            // 非字符串内的 // 注释
+            if (!inString && c == '/' && i + 1 < json.Length && json[i + 1] == '/')
+            {
+                // 跳过到行尾
+                while (i < json.Length && json[i] != '\n') i++;
+                sb.Append('\n');
+                continue;
+            }
+
+            sb.Append(c);
+        }
+
+        return sb.ToString();
+    }
+
     private static string Next(string[] args, ref int i, string flag)
     {
         if (i + 1 >= args.Length)
@@ -250,15 +377,23 @@ public sealed class CliOptions
             TableExporter - SMBX 38A 配置表导出工具
 
             用法:
+              TableExporter                       双击模式: 读同目录 .cfg.json
               TableExporter <表文件|目录|通配符>... [选项]
 
             选项:
               -o, --out <dir>          输出目录 (默认 out)
                   --font-atlas <path>  显式指定 FontAtlasGenerator 可执行文件
-                  --font-config <path> 字体图集配置 json (含 text 列时必填)
+                  --font-config <path> 字体图集配置 json (默认 .cfg.json)
                   --prefix <name>      覆盖生成脚本的函数名前缀
                   --self-test          运行内置自检
               -h, --help               显示本帮助
+
+            双击模式 (.cfg.json):
+              无参数启动时自动读取 exe 同目录的 .cfg.json:
+              "table": "npc.csv"         输入表 (字符串或数组, 文件/目录路径)
+              "table-output": "./out"    输出目录
+              "font-atlas-gen-exe": "..."    FontAtlasGenerator exe (可选)
+              "table-prefix": "Npc"      函数名前缀 (可选)
 
             表头格式 (文档三行头):
               第1行: 备注/表名 (可含 [sheetName])

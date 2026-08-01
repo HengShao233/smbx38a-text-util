@@ -62,6 +62,42 @@ public static class DataPacker
         int nRows = table.Rows.Count;
         int nFields = table.Fields.Count;
 
+        // 导出接口名碰撞检测：Get<field> 和 Get<field>Len
+        // 若同时存在 XXX 和 XXXLen 两个字段，GetXXXLen 会与 GetXXX+Len 碰撞
+        var pascalNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var f in table.Fields)
+        {
+            var pascal = TeaScriptEmitter.ToPascal(f.Name);
+            if (f.IsArray && pascalNames.Contains(pascal + "Len"))
+            {
+                throw new ExportException(
+                    $"[{table.Name}] 字段名碰撞: '{f.Name}' 与已存在的 '{pascal + "Len"}' 字段会导致导出接口名冲突 (Get{pascal}Len)。请重命名其中一个字段。");
+            }
+            if (!f.IsArray && pascalNames.Contains(pascal))
+            {
+                // 同名字段（Pascal 后相同）在非数组标量间也会碰撞 Get<field>
+                throw new ExportException(
+                    $"[{table.Name}] 字段名碰撞: '{f.Name}' 与已存在的字段生成相同的接口名 Get{pascal}。请重命名。");
+            }
+            // 如果当前是数组字段，检查是否存在 XXXLen 标量字段
+            if (f.IsArray && pascalNames.Contains(pascal + "Len"))
+            {
+                throw new ExportException(
+                    $"[{table.Name}] 字段名碰撞: 数组字段 '{f.Name}' 的 Get{pascal}Len 接口与已存在字段冲突。");
+            }
+            // 如果当前是标量字段名为 XXXLen，检查是否存在数组字段 XXX
+            if (!f.IsArray && pascal.EndsWith("Len", StringComparison.Ordinal))
+            {
+                var baseName = pascal.Substring(0, pascal.Length - 3);
+                if (pascalNames.Contains(baseName))
+                {
+                    throw new ExportException(
+                        $"[{table.Name}] 字段名碰撞: '{f.Name}' (Get{pascal}) 与数组字段 Get{baseName}Len 接口冲突。请重命名其中一个。");
+                }
+            }
+            pascalNames.Add(pascal);
+        }
+
         // 计算每个字段的 TXT 包装需求与数组定宽。
         var fieldNeedsTxt = new List<bool>(nFields);
         var fieldArrayElemWidth = new List<int>(nFields);

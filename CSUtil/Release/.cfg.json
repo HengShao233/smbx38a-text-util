@@ -1,37 +1,120 @@
 {
+  // ----------------------------------------- 导表用
+  // TableExporter config (双击模式) (导表用)
+  "table": ["table_test/npc.csv"],
+  // 导表输出目录 (导表用)
+  "table-output": "table_test",
+  // 字体图集生成器 (导表用)
+  "font-atlas-gen-exe": "FontAtlasGenerator.exe",
+
+  // ----------------------------------------- 字体图集生成器用
   // font file
-  "font-path": "",
+  "font-path": "./px12.ttf",
   // atlas output path
-  "output-path": "",
+  "output-path": "./",
   // render conf
-  "em-size": 9,
+  "em-size": 17,
   // render conf
   "grid-size": 22,
   // render conf
-  "grid-offset": [0, 0],
+  "grid-offset": [-4, -3],
   // render conf
   "spc-grid-offset": [
-    // ["?", 0, 0]
-    // [here are 0 items...]
+    ["g", 0, -2],
+    ["f", 0, 1],
+    ["j", 0, -2],
+    ["p", 0, -2],
+    ["q", 0, -2],
+    ["y", 0, -2],
+    ["_", 0, -8]
   ],
   // render conf
   "char-offset-y": [
-    ["g", 3],
-    ["q", 6],
-    ["p", 6],
-    ["j", 4]
+    ["g", 2],
+    ["q", 2],
+    ["p", 2],
+    ["j", 2],
+    ["f", -1],
+    ["y", 2],
+    ["_", 4]
   ],
   // render conf
   "char-size": [
-    ["j", 6],
-    ["t", 9]
+    ["\u0001", 0],
+    ["2", 14],
+    ["3", 14],
+    ["4", 14],
+    ["5", 14],
+    ["6", 14],
+    ["7", 14],
+    ["8", 14],
+    ["9", 14],
+    ["0", 14],
+    ["a", 12],
+    ["b", 14],
+    ["c", 12],
+    ["d", 14],
+    ["e", 13],
+    ["f", 8],
+    ["g", 13],
+    ["h", 13],
+    ["i", 6],
+    ["j", 7],
+    ["k", 12],
+    ["l", 8],
+    ["m", 18],
+    ["n", 13],
+    ["o", 13],
+    ["p", 14],
+    ["q", 14],
+    ["r", 10],
+    ["s", 12],
+    ["t", 8],
+    ["u", 14],
+    ["v", 12],
+    ["w", 18],
+    ["x", 12],
+    ["y", 12],
+    ["z", 12],
+    ["A", 15],
+    ["B", 15],
+    ["C", 15],
+    ["D", 16],
+    ["E", 15],
+    ["F", 15],
+    ["G", 16],
+    ["H", 16],
+    ["I", 8],
+    ["J", 10],
+    ["K", 15],
+    ["L", 14],
+    ["M", 19],
+    ["N", 16],
+    ["O", 16],
+    ["P", 15],
+    ["Q", 16],
+    ["R", 15],
+    ["S", 15],
+    ["T", 14],
+    ["U", 17],
+    ["V", 16],
+    ["W", 21],
+    ["X", 15],
+    ["Y", 13],
+    ["Z", 15],
+    ["?", 14],
+    ["!", 8],
+    ["+", 14],
+    ["_", 15],
+    ["<", 14],
+    [">", 14]
   ],
   // render conf
   "canvas-size": 2048,
   // render conf
-  "font-render-type": -1, // -1
+  "font-render-type": 4, // AntiAlias
   // ex char set
-  "char-set": "",
+  "char-set": "。，？！（）—：；“”《》、~【】…·",
   // is char set additional
   "addition-char-set": true,
   // scripts need to transcode

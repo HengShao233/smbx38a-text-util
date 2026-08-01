@@ -1,6 +1,6 @@
 [npc]
 id,name,hp,speed,boss,drops,tags,partner,desc
-s,s,i,i,i,i[|],s[;],s,s
+s,s,i,i,i,i[|],s[;],s,t
 goomba,Goomba,1,250,0,1|2,ground;weak,koopa,Goomba enemy
 koopa,Koopa Troopa,2,175,0,3|4|5,ground;shell,goopa,Shell kicker
 piranha,Piranha Plant,3,0,0,,plant;stationary,,Bite plant
