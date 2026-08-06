@@ -36,11 +36,11 @@ public static class TableReader
     {
         if (grid.Count == 0)
         {
-            throw new ExportException($"[{name}] 表内容为空");
+            throw new ExportException($"<{name}> 表内容为空");
         }
 
         // 检测格式：文档三行头 vs 旧单行头
-        // 文档格式：第1行备注(可含[sheetName])，第2行字段名，第3行类型
+        // 文档格式：第1行备注(可含<sheetName>)，第2行字段名，第3行类型
         // 旧格式：第1行 字段名:类型
         int headerRowIdx;
         int typeRowIdx;
@@ -52,12 +52,12 @@ public static class TableReader
         var fields = new List<FieldDef>();
         if (isThreeRowHeader)
         {
-            // 第 1 行：备注/表名，尝试提取 [sheetName]
+            // 第 1 行：备注/表名，尝试提取 <sheetName>
             if (grid.Count > 0 && grid[0].Count > 0)
             {
                 var remark = grid[0][0];
-                var bracketStart = remark.IndexOf('[');
-                var bracketEnd = remark.IndexOf(']');
+                var bracketStart = remark.IndexOf('<');
+                var bracketEnd = remark.IndexOf('>');
                 if (bracketStart >= 0 && bracketEnd > bracketStart)
                 {
                     sheetName = remark.Substring(bracketStart + 1, bracketEnd - bracketStart - 1).Trim();
@@ -77,7 +77,7 @@ public static class TableReader
 
         if (grid.Count <= headerRowIdx)
         {
-            throw new ExportException($"[{name}] 缺少字段名行");
+            throw new ExportException($"<{name}> 缺少字段名行");
         }
 
         var headerRow = grid[headerRowIdx];
@@ -109,7 +109,7 @@ public static class TableReader
                 else
                 {
                     typePart = "str";
-                    diag.Warn($"[{name}] 列 '{fieldName}' 未标注类型，按 str 处理");
+                    diag.Warn($"<{name}> 列 '{fieldName}' 未标注类型，按 str 处理");
                 }
             }
 
@@ -118,18 +118,18 @@ public static class TableReader
 
         if (fields.Count == 0)
         {
-            throw new ExportException($"[{name}] 未解析到任何有效列");
+            throw new ExportException($"<{name}> 未解析到任何有效列");
         }
 
         if (fields.All(f => !f.IsId))
         {
-            throw new ExportException($"[{name}] 缺少必需的主键列 'id'");
+            throw new ExportException($"<{name}> 缺少必需的主键列 'id'");
         }
 
         var idField = fields.First(f => f.IsId);
         if (idField.IsArray)
         {
-            throw new ExportException($"[{name}] 主键列 'id' 不能是数组");
+            throw new ExportException($"<{name}> 主键列 'id' 不能是数组");
         }
 
         var rows = new List<RowData>();
@@ -161,13 +161,13 @@ public static class TableReader
 
             if (id.Length == 0)
             {
-                diag.Error($"[{name}] 第 {line} 行: id 为空");
+                diag.Error($"<{name}> 第 {line} 行: id 为空");
                 continue;
             }
 
             if (seenIds.TryGetValue(id, out var prev))
             {
-                diag.Error($"[{name}] 第 {line} 行: id '{id}' 与第 {prev} 行重复");
+                diag.Error($"<{name}> 第 {line} 行: id '{id}' 与第 {prev} 行重复");
                 continue;
             }
 
