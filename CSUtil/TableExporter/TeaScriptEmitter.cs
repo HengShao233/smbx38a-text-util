@@ -92,7 +92,9 @@ public sealed class TeaScriptEmitter
 
     private void AppendInterfaceList(StringBuilder sb)
     {
-        sb.Append("' Export Script ").Append(_sheet).AppendLine("_SetId(id As String)");
+        sb.Append("' Export Script ").Append(_sheet).AppendLine("_SetId(id As String) 通过 id 获取行数据");
+        sb.Append("' Export Script ").Append(_sheet).AppendLine("_SetIndex(i As Integer) 通过下表获取行数据");
+        sb.Append("' Export Script ").Append(_sheet).AppendLine($"_RowCount(Return Integer) 行数 {_sortedUuids.Count}");
         for (int fi = 0; fi < _packed.Table.Fields.Count; fi++)
         {
             var f = _packed.Table.Fields[fi];
@@ -142,7 +144,6 @@ public sealed class TeaScriptEmitter
     {
         sb.AppendLine();
         sb.AppendLine("' -------- 动态数据块");
-        sb.AppendLine("Dim __curr_id As String = \"\"");
         sb.AppendLine("Dim __curr_data_map_id As Integer = 0");
         sb.AppendLine("Dim __curr_data_map_offset As Integer = 0");
         sb.AppendLine("Dim __field_index As Long = 0");
@@ -305,6 +306,10 @@ public sealed class TeaScriptEmitter
         EmitFindRowTree(sb, 1, _sortedUuids.Count, "    ");
         sb.AppendLine("    Return 0");
         sb.AppendLine("End Script");
+        sb.AppendLine();
+        sb.AppendLine($"Export Script {_sheet}_RowCount(Return Integer)");
+        sb.AppendLine($"    Return {_sortedUuids.Count}");
+        sb.AppendLine("End Script");
     }
 
     private void EmitFindRowTree(StringBuilder sb, int lo, int hi, string indent)
@@ -345,12 +350,23 @@ public sealed class TeaScriptEmitter
         // uuid = seed; for each char: uuid = (uuid * multiplier + Asc(char)) Mod tableSize
         // 用全局 temp 变量，不用局部 Dim
         sb.AppendLine("    __tmp_long = " + h.Seed);
-        sb.AppendLine("    For __tmp_int = 1 To Len(__curr_id) Step 1");
-        sb.AppendLine("        __tmp_long = (__tmp_long * " + h.Multiplier + " + Asc(Mid(__curr_id, __tmp_int, 1))) Mod " + h.TableSize);
+        sb.AppendLine("    For __tmp_int = 1 To Len(__tmp_str) Step 1");
+        sb.AppendLine("        __tmp_long = (__tmp_long * " + h.Multiplier + " + Asc(Mid(__tmp_str, __tmp_int, 1))) Mod " + h.TableSize);
         sb.AppendLine("    Next");
         sb.Append("    __tmp_int = ").Append(_prefix).AppendLine("FindRow(__tmp_long)");
         sb.AppendLine("    If __tmp_int <= 0 Then Return -1");
         // base = (entry - 1) * entryWidth + 1 （1-based）
+        sb.AppendLine("    __tmp_long = (__tmp_int - 1) * " + entryWidth + " + 1");
+        sb.AppendLine("    __curr_data_map_id = CUMath_Decode(__row_map, __tmp_long + " + _uuidWidth + ", 1, 92)");
+        sb.AppendLine("    __curr_data_map_offset = CUMath_Decode(__row_map, __tmp_long + " + (_uuidWidth + 1) + ", 2, 92)");
+        sb.AppendLine("    Return 0");
+        sb.AppendLine("End Script");
+
+        sb.AppendLine();
+        sb.AppendLine($"Script {_prefix}SeekDataMapByIndex(index As Integer, Return Integer)");
+        sb.AppendLine("    __tmp_int = index");
+        sb.AppendLine("    If __tmp_int <= 0 Or __tmp_int > " + _sortedUuids.Count + " Then Return -1");
+        // base = (entry - 1) * entryWidth + 1 （1-based
         sb.AppendLine("    __tmp_long = (__tmp_int - 1) * " + entryWidth + " + 1");
         sb.AppendLine("    __curr_data_map_id = CUMath_Decode(__row_map, __tmp_long + " + _uuidWidth + ", 1, 92)");
         sb.AppendLine("    __curr_data_map_offset = CUMath_Decode(__row_map, __tmp_long + " + (_uuidWidth + 1) + ", 2, 92)");
@@ -394,9 +410,22 @@ public sealed class TeaScriptEmitter
 
         // SetId
         sb.Append("Export Script ").Append(_sheet).AppendLine("_SetId(id As String)");
-        sb.AppendLine("    __curr_id = id");
+        sb.AppendLine("    __tmp_str = id");
         sb.AppendLine("    __last_error = 0");
         sb.Append("    If ").Append(_prefix).AppendLine("SeekDataMap() <> 0 Then");
+        sb.AppendLine("        __curr_data_map_id = -1");
+        sb.AppendLine("        __last_error = -1");
+        sb.AppendLine("    End If");
+        sb.AppendLine("    __orig_data_map_id = __curr_data_map_id");
+        sb.AppendLine("    __orig_data_map_offset = __curr_data_map_offset");
+        sb.AppendLine("End Script");
+        sb.AppendLine();
+
+        // SetIndex
+        sb.Append("Export Script ").Append(_sheet).AppendLine("_SetIndex(id As Integer)");
+        sb.AppendLine("    __tmp_str = \"\"");
+        sb.AppendLine("    __last_error = 0");
+        sb.Append("    If ").Append(_prefix).AppendLine("SeekDataMapByIndex(id) <> 0 Then");
         sb.AppendLine("        __curr_data_map_id = -1");
         sb.AppendLine("        __last_error = -1");
         sb.AppendLine("    End If");
@@ -516,7 +545,7 @@ public sealed class TeaScriptEmitter
         sb.AppendLine();
 
         // Get<field>Len
-        string lenName = getterName + "Len";
+        var lenName = getterName + "Len";
         sb.Append("Export Script ").Append(lenName).AppendLine("(Return Long)");
         sb.AppendLine("    __curr_data_map_id = __orig_data_map_id");
         sb.AppendLine("    __curr_data_map_offset = __orig_data_map_offset");
