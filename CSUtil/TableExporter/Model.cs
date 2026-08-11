@@ -5,6 +5,9 @@ namespace TableExporter;
 /// <summary>表中一列所支持的类型。</summary>
 public enum FieldType
 {
+    /// <summary>跳过列：不参与导出，仅保留源表内容用于备注。类型可写 skip / none / x 等。</summary>
+    Skip,
+
     /// <summary>32 位整数。</summary>
     Int,
 

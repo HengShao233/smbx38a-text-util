@@ -406,6 +406,7 @@ public sealed class CliOptions
               int (i/i32/integer)  - 32位整数, 对应 Long
               str (s/string)       - ASCII 字符串, 对应 String
               text (t/txt)         - 富文本, 需 FontAtlasGenerator 转码
+              skip (none/x/comment/remark) - 跳过列: 不导出, 仅保留源表内容用于写备注
               类型后加 [] 为数组, 如 i[] 或 s[;]
 
             必需列:

@@ -37,6 +37,8 @@ public static class SelfTest
         TestSimulatorSuperLargeTable();
         TestSimulatorMissAndError();
         TestSimulatorBinarySearch();
+        TestUnitDeduplication();
+        TestSkipColumn();
 
         Console.WriteLine();
         Console.WriteLine($"通过 {_passed}, 失败 {_failed}");
@@ -903,6 +905,155 @@ public static class SelfTest
         bool findRowHasLoop = findRowBody.Contains("For ");
         Check("sim FindRow 是展开式 If", hasFindRowIf);
         Check("sim FindRow 无循环", !findRowHasLoop);
+    }
+
+    // 验证内容相同的 unit 被全局合并（字符串驻留）：所有引用指向同一份，导出体积显著压缩。
+    static void TestUnitDeduplication()
+    {
+        string marker = "DEDUPE_UNIT_ABC123";
+        string arrMarker = "ARR_UNIT_XYZ789";
+        var fields = new List<FieldDef>
+        {
+            new() { Name = "id", Type = FieldType.String },
+            new() { Name = "hp", Type = FieldType.Int },
+            new() { Name = "note", Type = FieldType.String },
+            new() { Name = "tags", Type = FieldType.String, IsArray = true, ArraySeparator = ";" },
+        };
+
+        int n = 50;
+        var rows = new List<RowData>();
+        for (int i = 0; i < n; i++)
+        {
+            rows.Add(new RowData
+            {
+                Id = "row" + i,
+                SourceLine = 2 + i,
+                Cells = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["id"] = "row" + i,
+                    ["hp"] = "5",                       // 全部相同标量 → 应合并
+                    ["note"] = marker,                  // 全部相同长串标量 → 应合并
+                    ["tags"] = "x;" + arrMarker + ";y", // 全部相同数组 → 应合并
+                },
+            });
+        }
+
+        var table = new TableData { Name = "dedupe_test", Fields = fields, Rows = rows };
+        var ids = rows.Select(r => r.Id).ToList();
+        var tableSize = PerfectHash.NextPrime(Math.Max(ids.Count * 16, ids.Count + 64));
+        var hash = PerfectHash.Build(ids, table.Name, tableSize);
+        // 普通 string 原样存储（不转码），与导出期 text 列一致。
+        var packed = DataPacker.Pack(table, hash, raw => raw, _ => 0);
+        string allChunks = string.Concat(packed.DataChunks);
+
+        // 1) 往返一致：去重后每个字段仍能正确读回（用运行时模拟器按定位段解码）
+        bool roundTrip = true;
+        for (int i = 0; i < n; i++)
+        {
+            var loc = RuntimeSimulator.LocateRow(packed, hash, "row" + i);
+            if (loc is null) { roundTrip = false; break; }
+            var id = RuntimeSimulator.FieldRaw(packed, loc, 0);
+            var hp = Base92.DecodeInt(RuntimeSimulator.FieldRaw(packed, loc, 1));
+            var note = RuntimeSimulator.FieldRaw(packed, loc, 2);
+            var tags = RuntimeSimulator.ArrayItems(packed, loc, 3).ToList();
+            if (id != "row" + i || hp != 5 || note != marker ||
+                tags.Count != 3 || tags[0] != "x" || tags[1] != arrMarker || tags[2] != "y") { roundTrip = false; break; }
+        }
+
+        Check("去重：50 行全字段往返一致", roundTrip);
+
+        // 2) 标量单元全局合并：独特标记串在全部 chunk 中只出现一次
+        int markerCount = CountOccurrences(allChunks, marker);
+        Check("去重：note 标量单元全局仅存储一份", markerCount == 1, $"出现 {markerCount} 次");
+
+        // 3) 数组单元全局合并：独特数组标记在全部 chunk 中只出现一次。
+        //    这是关键的去重校验——数组字段若不去重，该标记会出现 n 次。
+        int arrMarkerCount = CountOccurrences(allChunks, arrMarker);
+        Check("去重：tags 数组单元全局仅存储一份", arrMarkerCount == 1, $"出现 {arrMarkerCount} 次（期望 1）");
+
+        // 4) 导出体积显著压缩：重复单元合并后远小于不合并的理论值
+        int arrUnitLen = ("x;" + arrMarker + ";y").Length + 3 * 8; // 元素原文 + 数组头
+        int singleSize = marker.Length + 1 /*hp 单元*/ + arrUnitLen + 4 * 8 /*各字段定位段*/;
+        int naiveSize = n * singleSize;
+        Check("去重：导出体积显著小于不合并", allChunks.Length < naiveSize / 2, $"实际 {allChunks.Length} < 理论 {naiveSize / 2}");
+
+        // 5) 端到端：用生成的脚本驱动的模拟器验证
+        var (_, _, smt) = BuildAndEmit(table, _ => 0);
+        var sim = TeaScriptSimulator.Parse(smt, table, hash);
+        sim.SetId("row0");
+        Check("dedup sim id", sim.GetString("id") == "row0");
+        Check("dedup sim hp", sim.GetInt("hp") == 5);
+        Check("dedup sim note", sim.GetString("note") == marker);
+        Check("dedup sim tags 长度", sim.GetArrayLen("tags") == 3);
+        Check("dedup sim tags[1]", sim.GetArrayString("tags", 1) == "x");
+        Check("dedup sim tags[2]", sim.GetArrayString("tags", 2) == arrMarker);
+        Check("dedup sim tags[3]", sim.GetArrayString("tags", 3) == "y");
+    }
+
+    // 验证标记为 skip 的列不参与导出（仅保留源表内容用于备注），且其余列正常。
+    static void TestSkipColumn()
+    {
+        string csv =
+            "<test>\r\n" +
+            "id,hp,devnote,title\r\n" +
+            "s,i,skip,s\r\n" +
+            "a,5,这是开发备注A,Hello\r\n" +
+            "b,8,这是开发备注B,World\r\n";
+
+        string path = Path.Combine(Path.GetTempPath(), "tbr_skiptest_" + Guid.NewGuid().ToString("N") + ".csv");
+        File.WriteAllText(path, csv, new System.Text.UTF8Encoding(false));
+        try
+        {
+            var diag = new Diagnostics();
+            var table = TableReader.Read(path, diag);
+            Check("skip 列已从字段列表剔除", !table.Fields.Any(f => f.Name == "devnote"), "仍含 devnote 字段");
+            Check("skip 解析无错误", !diag.HasErrors, diag.HasErrors ? "存在解析错误" : "");
+
+            var (hash, packed, emit) = BuildAndEmit(table, _ => 0);
+            string allChunks = string.Concat(packed.DataChunks);
+
+            // 备注内容不得出现在任何数据块中 → 证明 skip 列完全未导出
+            Check("skip 列内容未导出(备注A)", !allChunks.Contains("这是开发备注A"));
+            Check("skip 列内容未导出(备注B)", !allChunks.Contains("这是开发备注B"));
+
+            // 其余列往返一致
+            var rowA = table.Rows[0];
+            var rowB = table.Rows[1];
+            Check("skip 表 A.id", rowA.Cells["id"] == "a");
+            Check("skip 表 A.hp", rowA.Cells["hp"] == "5");
+            Check("skip 表 A.title", rowA.Cells["title"] == "Hello");
+            Check("skip 表 B.id", rowB.Cells["id"] == "b");
+            Check("skip 表 B.hp", rowB.Cells["hp"] == "8");
+            Check("skip 表 B.title", rowB.Cells["title"] == "World");
+
+            // 生成的脚本不应包含 skip 列的访问器
+            Check("skip 表脚本不含 GetDevnote", !emit.Contains("GetDevnote"));
+            Check("skip 表脚本含 GetTitle", emit.Contains("GetTitle"));
+            Check("skip 表脚本含 GetHp", emit.Contains("GetHp"));
+
+            // 端到端：模拟器只读非 skip 列
+            var sim = TeaScriptSimulator.Parse(emit, table, hash);
+            sim.SetId("a");
+            Check("skip sim A.hp", sim.GetInt("hp") == 5);
+            Check("skip sim A.title", sim.GetString("title") == "Hello");
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    static int CountOccurrences(string haystack, string needle)
+    {
+        if (needle.Length == 0) return 0;
+        int count = 0, idx = 0;
+        while ((idx = haystack.IndexOf(needle, idx, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            idx += needle.Length;
+        }
+
+        return count;
     }
 }
 

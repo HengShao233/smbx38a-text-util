@@ -113,7 +113,16 @@ public static class TableReader
                 }
             }
 
-            fields.Add(ParseType(name, fieldName, typePart, col, diag));
+            var def = ParseType(name, fieldName, typePart, col, diag);
+
+            // 跳过列：保留源表列内容用于备注，但不参与导出（不生成字段/访问器）。
+            if (def.Type == FieldType.Skip)
+            {
+                diag.Warn($"<{name}> 列 '{fieldName}' 标记为 skip，已跳过导出（保留为备注列）");
+                continue;
+            }
+
+            fields.Add(def);
         }
 
         if (fields.Count == 0)
@@ -240,7 +249,8 @@ public static class TableReader
             "text" or "t" or "txt" => FieldType.Text,
             "bool" or "boolean" => FieldType.Int, // bool 归约为 int (0/1)
             "ref" or "uuid" => FieldType.Int,     // ref 归约为 int
-            _ => throw new ExportException($"[{table}] 列 '{fieldName}' 的类型 '{typePart}' 不受支持 (仅支持 int/str/text)"),
+            "skip" or "none" or "x" or "comment" or "remark" or "memo" or "注释" => FieldType.Skip, // 跳过列：不导出，仅作备注
+            _ => throw new ExportException($"[{table}] 列 '{fieldName}' 的类型 '{typePart}' 不受支持 (仅支持 int/str/text/skip)"),
         };
 
         return new FieldDef

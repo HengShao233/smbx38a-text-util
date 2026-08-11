@@ -162,6 +162,10 @@ public static class DataPacker
         var chunkList = new List<StringBuilder> { new StringBuilder() };
         var mapList = new List<StringBuilder> { new StringBuilder() };
 
+        // 内容相同的 unit 全局合并（字符串驻留）：key = 类型身份 + 编码文本，
+        // 命中则所有引用该 unit 的字段定位段统一指向同一位置，显著压缩导出体积。
+        var unitDict = new Dictionary<string, (int chunkId, int offset, int len)>();
+
         // 每行的 (dataMapId, dataMapOffset) —— row_map 中存储
         var rowMapEntries = new List<(int dataMapId, int dataMapOffset)>(nRows);
 
@@ -192,41 +196,54 @@ public static class DataPacker
                     var items = SplitArray(raw, def.ArraySeparator);
                     var (elemTexts, _) = ValueEncoder.EncodeArray(def.Type, items, textResolver);
 
-                    // 先确定数据单元放在哪个 chunk（可能新建 chunk）
                     int headerLen = elemTexts.Count * 8;
-                    int totalUnitLen = headerLen + elemTexts.Sum(e => e.Length);
-                    if (currentChunk.Length + totalUnitLen > MaxChunkLen && currentChunk.Length > 0)
+
+                    // 内容相同的数组单元全局合并：key 仅依赖元素内容（与写入位置无关），
+                    // 这样相同内容的数组只存一份，所有引用统一指向同一单元。
+                    string unitKey = "a" + (int)def.Type + ":" + string.Join("\u0001", elemTexts);
+                    if (unitDict.TryGetValue(unitKey, out var arrHit))
                     {
-                        chunkList.Add(new StringBuilder());
-                        currentChunk = chunkList[^1];
+                        chunkId = arrHit.chunkId;
+                        chunkOffset1Based = arrHit.offset;
+                        dataLen = arrHit.len;
                     }
-
-                    int chunkIdArr = chunkList.Count - 1;
-                    int headerStart0 = currentChunk.Length;
-                    int headerStart1 = headerStart0 + 1;
-
-                    // 生成数组头 + 元素
-                    var headerSb = new StringBuilder(headerLen);
-                    var elemSb = new StringBuilder();
-                    int elemOffset = headerLen; // 元素相对于数组头起始的偏移
-                    for (int ei = 0; ei < elemTexts.Count; ei++)
+                    else
                     {
-                        string elemText = elemTexts[ei];
-                        int absOffset1Based = headerStart1 + elemOffset;
-                        headerSb.Append(Encode2(chunkIdArr));
-                        headerSb.Append(Encode3(absOffset1Based));
-                        headerSb.Append(Encode3(elemText.Length));
-                        elemSb.Append(elemText);
-                        elemOffset += elemText.Length;
+                        // 确定数组单元（头 + 元素）落在哪个 chunk
+                        int totalUnitLen = headerLen + elemTexts.Sum(e => e.Length);
+                        if (currentChunk.Length + totalUnitLen > MaxChunkLen && currentChunk.Length > 0)
+                        {
+                            chunkList.Add(new StringBuilder());
+                            currentChunk = chunkList[^1];
+                        }
+
+                        int chunkIdArr = chunkList.Count - 1;
+                        int headerStart1 = currentChunk.Length + 1;
+
+                        // 生成数组头 + 元素（元素偏移基于真实写入位置 headerStart1，严格一致）。
+                        var headerSb = new StringBuilder(headerLen);
+                        var elemSb = new StringBuilder();
+                        int elemOffset = headerLen; // 元素相对于数组头起始的偏移
+                        for (int ei = 0; ei < elemTexts.Count; ei++)
+                        {
+                            string elemText = elemTexts[ei];
+                            int absOffset1Based = headerStart1 + elemOffset;
+                            headerSb.Append(Encode2(chunkIdArr));
+                            headerSb.Append(Encode3(absOffset1Based));
+                            headerSb.Append(Encode3(elemText.Length));
+                            elemSb.Append(elemText);
+                            elemOffset += elemText.Length;
+                        }
+
+                        currentChunk.Append(headerSb.ToString());
+                        currentChunk.Append(elemSb.ToString());
+
+                        dataUnit = headerSb.ToString() + elemSb.ToString();
+                        dataLen = headerLen;
+                        chunkId = chunkIdArr;
+                        chunkOffset1Based = headerStart1;
+                        unitDict[unitKey] = (chunkId, chunkOffset1Based, dataLen);
                     }
-
-                    currentChunk.Append(headerSb.ToString());
-                    currentChunk.Append(elemSb.ToString());
-
-                    dataUnit = headerSb.ToString() + elemSb.ToString();
-                    dataLen = headerLen;
-                    chunkId = chunkIdArr;
-                    chunkOffset1Based = headerStart1;
                 }
                 else
                 {
@@ -240,17 +257,29 @@ public static class DataPacker
                     var enc = ValueEncoder.EncodeScalar(def.Type, cellRaw, textResolver);
                     dataUnit = enc.Text;
 
-                    // 确定数据单元放在哪个 chunk
-                    if (currentChunk.Length + dataUnit.Length > MaxChunkLen && currentChunk.Length > 0)
+                    // 内容相同的 unit 全局合并（字符串驻留）：相同 (类型, 编码文本) 只存一份。
+                    string unitKey = "s" + (int)def.Type + ":" + dataUnit;
+                    if (unitDict.TryGetValue(unitKey, out var hit))
                     {
-                        chunkList.Add(new StringBuilder());
-                        currentChunk = chunkList[^1];
+                        chunkId = hit.chunkId;
+                        chunkOffset1Based = hit.offset;
+                        dataLen = hit.len;
                     }
+                    else
+                    {
+                        // 确定数据单元放在哪个 chunk
+                        if (currentChunk.Length + dataUnit.Length > MaxChunkLen && currentChunk.Length > 0)
+                        {
+                            chunkList.Add(new StringBuilder());
+                            currentChunk = chunkList[^1];
+                        }
 
-                    chunkId = chunkList.Count - 1;
-                    chunkOffset1Based = currentChunk.Length + 1;
-                    currentChunk.Append(dataUnit);
-                    dataLen = dataUnit.Length;
+                        chunkId = chunkList.Count - 1;
+                        chunkOffset1Based = currentChunk.Length + 1;
+                        currentChunk.Append(dataUnit);
+                        dataLen = dataUnit.Length;
+                        unitDict[unitKey] = (chunkId, chunkOffset1Based, dataLen);
+                    }
                 }
 
                 // 生成字段定位段 [chunkId 2位][offset 3位][len 3位]
