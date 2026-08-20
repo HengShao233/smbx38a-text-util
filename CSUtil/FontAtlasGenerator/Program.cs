@@ -58,6 +58,15 @@ internal static partial class Program
             return;
         }
 
+        if (args is { Length: > 0 } && (args[0] == "--transcode" || args[0] == "-t"))
+        {
+            // Streaming transcode mode: read text lines from stdin, write encoded payloads to stdout.
+            // No intermediate files are created. The character mapping is identical to the pure-transcode
+            // path used by the table exporter (standard Hanzi set, IsAdditionalCharSet).
+            RunTranscode();
+            return;
+        }
+
         try
         {
             var smtList = new List<string>();
@@ -255,5 +264,51 @@ internal static partial class Program
         // 注意：不再调用 Console.ReadKey()，以避免在 stdio 被重定向（如被子进程调用）
         // 时抛 InvalidOperationException 导致进程崩溃。转码/图集生成完成后直接退出。
         Console.ForegroundColor = ConsoleColor.White;
+    }
+
+    /// <summary>
+    /// 流式转码模式：从 stdin 逐行读取待转码文本，对每一行调用
+    /// <see cref="StringEncoder.Encoding"/>（使用与导表工具纯转码路径一致的标准汉字字符集），
+    /// 将结果逐行写入 stdout。整个过程不落盘，由调用方通过进程管道直接喂入 / 回收数据。
+    /// </summary>
+    private static void RunTranscode()
+    {
+        var charMap = CommonStandardHanzi.CharIdMap;
+
+        // 显式使用 UTF-8，避免子进程在 stdin/stdout 被重定向时
+        // 退回到控制台的默认 OEM 编码（如 GBK）导致中文乱码。
+        var stdin = Console.OpenStandardInput();
+        var stdout = new StreamWriter(Console.OpenStandardOutput(), Encoding.UTF8) { AutoFlush = true };
+        using var reader = new StreamReader(stdin, Encoding.UTF8, leaveOpen: true);
+
+        string? line;
+        while ((line = reader.ReadLine()) is not null)
+        {
+            try
+            {
+                // 与文件模式 StringEncoder.ReplaceALine 保持一致：先对反斜杠做预处理，再转码。
+                var processed = line.Replace("\\", "\\\\");
+                var encoded = StringEncoder.Encoding(processed.AsSpan(), charMap);
+
+                // 与文件模式 ExtractEncodedPayload 等价：剥离外层 TXT(D(" ... ")) 包裹，
+                // 只回传载荷本体，使调用方无需再做二次解析。
+                var first = encoded.IndexOf('"');
+                var last = encoded.LastIndexOf('"');
+                var payload = first >= 0 && last > first
+                    ? encoded.Substring(first + 1, last - first - 1)
+                    : encoded;
+                stdout.WriteLine(payload);
+            }
+            catch (Exception e)
+            {
+                // 单行失败不影响整批：输出错误占位并继续。
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Error.WriteLine($"[transcode] failed on line: {e.Message}");
+                Console.ForegroundColor = ConsoleColor.White;
+                stdout.WriteLine(string.Empty);
+            }
+        }
+
+        stdout.Flush();
     }
 }

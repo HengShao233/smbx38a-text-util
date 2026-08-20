@@ -94,6 +94,7 @@ public sealed class TeaScriptEmitter
     {
         sb.Append("' Export Script ").Append(_sheet).AppendLine("_SetId(id As String) 通过 id 获取行数据");
         sb.Append("' Export Script ").Append(_sheet).AppendLine("_SetIndex(i As Integer) 通过下表获取行数据");
+        sb.Append("' Export Script ").Append(_sheet).AppendLine("_Index(Return Integer) 获取当前活跃行的行号（由 SetId/SetIndex 决定）");
         sb.Append("' Export Script ").Append(_sheet).AppendLine($"_RowCount(Return Integer) 行数 {_sortedUuids.Count}");
         for (int fi = 0; fi < _packed.Table.Fields.Count; fi++)
         {
@@ -156,6 +157,7 @@ public sealed class TeaScriptEmitter
         sb.AppendLine("Dim __target_data As String = \"\"");
         sb.AppendLine("Dim __temp_str As String = \"\"");
         sb.AppendLine("Dim __last_error As Long = 0");
+        sb.AppendLine("Dim __curr_row_index As Integer = 0");
         sb.AppendLine("Dim __orig_data_map_id As Integer = 0");
         sb.AppendLine("Dim __orig_data_map_offset As Integer = 0");
         // temp 变量区（替代局部 Dim）
@@ -415,6 +417,9 @@ public sealed class TeaScriptEmitter
         sb.Append("    If ").Append(_prefix).AppendLine("SeekDataMap() <> 0 Then");
         sb.AppendLine("        __curr_data_map_id = -1");
         sb.AppendLine("        __last_error = -1");
+        sb.AppendLine("        __curr_row_index = -1");
+        sb.AppendLine("    Else");
+        sb.AppendLine("        __curr_row_index = __tmp_int");
         sb.AppendLine("    End If");
         sb.AppendLine("    __orig_data_map_id = __curr_data_map_id");
         sb.AppendLine("    __orig_data_map_offset = __curr_data_map_offset");
@@ -428,9 +433,18 @@ public sealed class TeaScriptEmitter
         sb.Append("    If ").Append(_prefix).AppendLine("SeekDataMapByIndex(id) <> 0 Then");
         sb.AppendLine("        __curr_data_map_id = -1");
         sb.AppendLine("        __last_error = -1");
+        sb.AppendLine("        __curr_row_index = -1");
+        sb.AppendLine("    Else");
+        sb.AppendLine("        __curr_row_index = id");
         sb.AppendLine("    End If");
         sb.AppendLine("    __orig_data_map_id = __curr_data_map_id");
         sb.AppendLine("    __orig_data_map_offset = __curr_data_map_offset");
+        sb.AppendLine("End Script");
+        sb.AppendLine();
+
+        // Index：返回当前活跃行的行号（由 _SetId/_SetIndex 决定，1-based；未设置或失败为 -1）
+        sb.Append("Export Script ").Append(_sheet).AppendLine("_Index(Return Integer)");
+        sb.AppendLine("    Return __curr_row_index");
         sb.AppendLine("End Script");
         sb.AppendLine();
 

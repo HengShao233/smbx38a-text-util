@@ -234,11 +234,21 @@ public sealed class FontAtlasBridge
         return results.Count > 0 ? results[0] : string.Empty;
     }
 
+    /// <summary>是否优先使用流式 CLI 转码（避免临时文件 IO 往返）。默认开启。</summary>
+    public bool PreferCli { get; set; } = true;
+
     public List<string> Transcode(string? configPath, IReadOnlyList<string> texts)
     {
         if (texts.Count == 0)
         {
             return [];
+        }
+
+        // 纯转码（无字体图集）场景优先走流式 CLI，通过进程 stdin/stdout 直接
+        // 传递/回收数据，省去「写临时 .smt → 子进程转码 → 读回 → 删除」的 IO 往返。
+        if (PreferCli && string.IsNullOrWhiteSpace(configPath))
+        {
+            return TranscodeViaCli(texts);
         }
 
         string fullConfigPath;
@@ -324,6 +334,87 @@ public sealed class FontAtlasBridge
         {
             TryDeleteDirectory(workDir);
         }
+    }
+
+    /// <summary>
+    /// 流式 CLI 转码：直接通过子进程的 stdin 写入待转码文本、从 stdout 读取结果，
+    /// 全程不创建任何临时文件。字符集与文件模式完全一致（标准汉字集）。
+    /// </summary>
+    private List<string> TranscodeViaCli(IReadOnlyList<string> texts)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = _exePath,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        // 仅转码子命令，不传配置——子进程使用标准汉字字符集。
+        psi.ArgumentList.Add("--transcode");
+
+        using var proc = Process.Start(psi)
+            ?? throw new ExportException($"无法启动 FontAtlasGenerator: {_exePath}");
+
+        // 写入输入：每条文本一行，按与文件模式相同的规则做 smt 转义。
+        // 写完即关闭 stdin，使子进程读到 EOF 后开始收尾并关闭 stdout。
+        try
+        {
+            foreach (var t in texts)
+            {
+                proc.StandardInput.WriteLine(EscapeForSmt(t));
+            }
+        }
+        finally
+        {
+            try
+            {
+                proc.StandardInput.Close();
+            }
+            catch (IOException)
+            {
+                // 进程可能已退出，忽略。
+            }
+        }
+
+        // 读取输出：子进程逐行回写转码结果。
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+        var stderrTask = proc.StandardError.ReadToEndAsync();
+
+        if (!proc.WaitForExit(120_000))
+        {
+            try
+            {
+                proc.Kill(entireProcessTree: true);
+            }
+            catch (Exception)
+            {
+                // 忽略清理失败。
+            }
+
+            throw new ExportException("FontAtlasGenerator 执行超时 (120s)");
+        }
+
+        var outText = stdoutTask.GetAwaiter().GetResult();
+        var errText = stderrTask.GetAwaiter().GetResult();
+
+        // 去掉可能混入的回车符，按行还原为结果列表（空行代表对应文本转码失败/为空）。
+        var lines = outText
+            .Replace("\r", string.Empty)
+            .Split('\n')
+            .Where((_, idx) => idx < texts.Count) // 忽略末尾空行
+            .ToList();
+
+        if (lines.Count != texts.Count)
+        {
+            throw new ExportException(
+                $"FontAtlasGenerator 流式转码返回行数 {lines.Count} 与输入 {texts.Count} 不一致\n" +
+                $"stderr:\n{errText}");
+        }
+
+        return lines;
     }
 
     private static void TryDeleteFile(string path)
