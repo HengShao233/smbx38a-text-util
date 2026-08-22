@@ -93,7 +93,7 @@ public sealed class TeaScriptEmitter
     private void AppendInterfaceList(StringBuilder sb)
     {
         sb.Append("' Export Script ").Append(_sheet).AppendLine("_SetId(id As String) 通过 id 获取行数据");
-        sb.Append("' Export Script ").Append(_sheet).AppendLine("_SetIndex(i As Integer) 通过下表获取行数据");
+        sb.Append("' Export Script ").Append(_sheet).AppendLine("_SetIndex(i As Integer) 通过行号获取行数据");
         sb.Append("' Export Script ").Append(_sheet).AppendLine("_Index(Return Integer) 获取当前活跃行的行号（由 SetId/SetIndex 决定）");
         sb.Append("' Export Script ").Append(_sheet).AppendLine($"_RowCount(Return Integer) 行数 {_sortedUuids.Count}");
         for (int fi = 0; fi < _packed.Table.Fields.Count; fi++)

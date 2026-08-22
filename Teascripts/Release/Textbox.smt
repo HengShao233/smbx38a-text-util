@@ -226,6 +226,18 @@ Script __txtBox_ReadColorFlagVal(c As String, startIdx As Long, Return Integer)
     Return -1
 End Script
 
+Script __txtBox_ReadColor2FlagVal(c As String, startIdx As Long, Return Integer)
+    __box_tempIE = AscW(Mid(c, startIdx, 1))
+    If __box_tempIE >= 48 And __box_tempIE <= 57 Then
+        Return __txtBox_Min(__box_tempIE - 48, 16)
+    ElseIf __box_tempIE >= 65 And __box_tempIE <= 70 Then
+        Return __txtBox_Min(__box_tempIE - 55, 16)
+    ElseIf __box_tempIE >= 97 And __box_tempIE <= 102 Then
+        Return __txtBox_Min(__box_tempIE - 87, 16)
+    End If
+    Return -1
+End Script
+
 Script __txtBox_SetupFlag(flag As String, Return Integer)
     __box_tempIE = len(flag)
     If __box_tempIE <= 0 Then
@@ -247,6 +259,20 @@ Script __txtBox_SetupFlag(flag As String, Return Integer)
                 __colA = __txtBox_ReadColorFlagVal(flag, 8)
             End If
             Return 0
+        Elseif __box_tempIE < 6 Then
+            If __box_tempIE < 3 Then
+                __colR = __txtBox_ReadColor2FlagVal(flag, 2) / 15 * 255
+                __colG = __colR
+                __colB = __colR
+            Else
+                __colR = __txtBox_ReadColor2FlagVal(flag, 2) / 15 * 255
+                __colG = __txtBox_ReadColor2FlagVal(flag, 3) / 15 * 255
+                __colB = __txtBox_ReadColor2FlagVal(flag, 4) / 15 * 255
+                If __box_tempIE > 4 Then
+                    __colA = __txtBox_ReadColor2FlagVal(flag, 5) / 15 * 255
+                End If
+            End If
+			Return 0
         End If
         __colR = -1
         Return 0
