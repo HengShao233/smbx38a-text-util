@@ -337,47 +337,38 @@ public sealed class FontAtlasBridge
     }
 
     /// <summary>
-    /// 流式 CLI 转码：直接通过子进程的 stdin 写入待转码文本、从 stdout 读取结果，
-    /// 全程不创建任何临时文件。字符集与文件模式完全一致（标准汉字集）。
+    /// CLI 转码：将待转码文本直接作为命令行参数传给子进程，从 stdout 逐行读取结果，
+    /// 全程不创建临时 .smt。子进程在主流程中先解析 cfg json，再按解析出的字符集转码。
     /// </summary>
     private List<string> TranscodeViaCli(IReadOnlyList<string> texts)
     {
+        // 传一份临时空配置（无字体图集路径），让子进程走主流程解析 cfg json；
+        // 并以其所在目录为工作目录，避免捡到调用方目录下残留的 ./.cfg.json。
+        var cfgPath = WriteEphemeralConfig();
+        var cfgDir = Path.GetDirectoryName(cfgPath) ?? Path.GetTempPath();
+
         var psi = new ProcessStartInfo
         {
             FileName = _exePath,
-            RedirectStandardInput = true,
+            WorkingDirectory = cfgDir,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
 
-        // 仅转码子命令，不传配置——子进程使用标准汉字字符集。
+        // 转码子命令 + cfg json + 待转码文字（直接作为命令行参数传入，不再走 stdin 流式协议）。
+        // 子进程在转码模式下只向 stdout 输出载荷，信息性输出走 stderr。
         psi.ArgumentList.Add("--transcode");
+        psi.ArgumentList.Add(cfgPath);
+        foreach (var t in texts)
+        {
+            // 与文件模式一致：先做 smt 转义（\r 去除、\n -> \\n）。
+            psi.ArgumentList.Add(EscapeForSmt(t));
+        }
 
         using var proc = Process.Start(psi)
             ?? throw new ExportException($"无法启动 FontAtlasGenerator: {_exePath}");
-
-        // 写入输入：每条文本一行，按与文件模式相同的规则做 smt 转义。
-        // 写完即关闭 stdin，使子进程读到 EOF 后开始收尾并关闭 stdout。
-        try
-        {
-            foreach (var t in texts)
-            {
-                proc.StandardInput.WriteLine(EscapeForSmt(t));
-            }
-        }
-        finally
-        {
-            try
-            {
-                proc.StandardInput.Close();
-            }
-            catch (IOException)
-            {
-                // 进程可能已退出，忽略。
-            }
-        }
 
         // 读取输出：子进程逐行回写转码结果。
         var stdoutTask = proc.StandardOutput.ReadToEndAsync();
