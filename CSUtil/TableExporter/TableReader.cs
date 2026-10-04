@@ -16,7 +16,7 @@ namespace TableExporter;
 public static class TableReader
 {
     /// <summary>按扩展名分派读取。</summary>
-    public static TableData Read(string path, Diagnostics diag)
+    public static TableData Read(string path, Diagnostics diag, string? sheetNameOverride = null)
     {
         var name = Path.GetFileNameWithoutExtension(path);
         var ext = Path.GetExtension(path).ToLowerInvariant();
@@ -28,11 +28,12 @@ public static class TableReader
             _ => throw new ExportException($"不支持的表格式: {ext} ({path})"),
         };
 
-        return Parse(name, grid, diag);
+        return Parse(name, grid, diag, sheetNameOverride);
     }
 
     /// <summary>把二维文本网格解析成结构化表。</summary>
-    private static TableData Parse(string name, List<List<string>> grid, Diagnostics diag)
+    private static TableData Parse(
+        string name, List<List<string>> grid, Diagnostics diag, string? sheetNameOverride = null)
     {
         if (grid.Count == 0)
         {
@@ -42,18 +43,20 @@ public static class TableReader
         // 检测格式：文档三行头 vs 旧单行头
         // 文档格式：第1行备注(可含<sheetName>)，第2行字段名，第3行类型
         // 旧格式：第1行 字段名:类型
-        int headerRowIdx;
-        int typeRowIdx;
-        int dataStartRow;
-        string sheetName = name;
+        string sheetName = sheetNameOverride ?? name;
 
         bool isThreeRowHeader = DetectThreeRowHeader(grid);
 
         var fields = new List<FieldDef>();
+
+        int headerRowIdx;
+        int typeRowIdx;
+        int dataStartRow;
+
         if (isThreeRowHeader)
         {
-            // 第 1 行：备注/表名，尝试提取 <sheetName>
-            if (grid.Count > 0 && grid[0].Count > 0)
+            // 第 1 行：备注/表名，尝试提取 <sheetName>；但显式传入的 sheetNameOverride 优先。
+            if (sheetNameOverride is null && grid.Count > 0 && grid[0].Count > 0)
             {
                 var remark = grid[0][0];
                 var bracketStart = remark.IndexOf('<');

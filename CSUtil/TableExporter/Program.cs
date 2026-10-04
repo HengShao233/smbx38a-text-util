@@ -6,9 +6,31 @@ namespace TableExporter;
 /// <summary>命令行入口。</summary>
 public static class Program
 {
+    private static bool RegisterGbkProvider()
+    {
+        try
+        {
+            Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[warn] 注册 GBK 代码页失败: {ex.Message}");
+            return false;
+        }
+    }
+
     public static int Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
+
+        // 注册 CodePages（GBK / gb2312 等 ANSI 代码页），供 lvl 脚本按 GBK 字节编 base64 使用。
+        // 注意：类型全名为 System.Text.CodePagesEncodingProvider（命名空间 System.Text），
+        // 与 System.Text.Encoding 类同处一个命名空间，可直接引用。
+        if (!RegisterGbkProvider())
+        {
+            Console.Error.WriteLine("[warn] 注册 GBK 代码页失败，lvl 脚本中文可能无法按 GBK 编 base64。");
+        }
 
         try
         {
@@ -23,6 +45,11 @@ public static class Program
             if (options.RunSelfTest)
             {
                 return SelfTest.Run() ? 0 : 1;
+            }
+
+            if (options.Batch)
+            {
+                return BatchExporter.Run(BuildBatchOptions(options));
             }
 
             return Export(options);
@@ -49,7 +76,8 @@ public static class Program
             throw new ExportException("未找到任何输入表文件");
         }
 
-        Directory.CreateDirectory(options.OutputDir);
+        var outDir = options.OutputDir ?? "out";
+        Directory.CreateDirectory(outDir);
 
         var diag = new Diagnostics();
 
@@ -100,7 +128,7 @@ public static class Program
             var script = emitter.Emit();
 
             var outName = (options.Prefix ?? TeaScriptEmitter.ToPascal(table.Name)).ToLowerInvariant();
-            var outPath = Path.Combine(options.OutputDir, $"{outName}_table.smt");
+            var outPath = Path.Combine(outDir, $"{outName}_table.smt");
             File.WriteAllText(outPath, script, new UTF8Encoding(false));
 
             Console.WriteLine(
@@ -113,6 +141,30 @@ public static class Program
         Console.WriteLine();
         Console.WriteLine("导表完成。");
         return 0;
+    }
+
+    /// <summary>由解析后的命令行参数构建批处理选项：命令行优先，其次读取批处理配置文件。</summary>
+    private static BatchOptions BuildBatchOptions(CliOptions o)
+    {
+        var cfgPath = o.BatchConfigPath ?? CliOptions.FindDefaultCfg();
+        if (cfgPath is not null && File.Exists(cfgPath))
+        {
+            CliOptions.LoadBatchFromConfig(o, cfgPath);
+        }
+
+        return new BatchOptions
+        {
+            TableDir = o.TableDir ?? string.Empty,
+            LvlDir = o.LvlDir ?? string.Empty,
+            OutputDir = o.OutputDir ?? "out",
+            FontAtlasPath = o.FontAtlasPath,
+            FontConfigPath = o.FontConfigPath
+                ?? (cfgPath is not null && File.Exists(cfgPath) ? cfgPath : null),
+            TargetScriptName = o.TargetScriptName ?? "TableExport",
+            TxtDecoderScriptName = o.TxtDecoderScriptName ?? "TxtDecoder",
+            DepsDir = o.DepsDir,
+            CommonUtilsDir = o.CommonUtilsDir,
+        };
     }
 
     /// <summary>展开输入路径（支持目录与通配符）。</summary>
@@ -170,12 +222,22 @@ public static class Program
 public sealed class CliOptions
 {
     public List<string> Inputs { get; } = [];
-    public string OutputDir { get; private set; } = "out";
+    public string? OutputDir { get; private set; }
     public string? FontAtlasPath { get; private set; }
     public string? FontConfigPath { get; private set; }
     public string? Prefix { get; private set; }
     public bool ShowHelp { get; private set; }
     public bool RunSelfTest { get; private set; }
+
+    // 批处理相关
+    public bool Batch { get; private set; }
+    public string? TableDir { get; private set; }
+    public string? LvlDir { get; private set; }
+    public string? BatchConfigPath { get; private set; }
+    public string? TargetScriptName { get; private set; }
+    public string? DepsDir { get; private set; }
+    public string? TxtDecoderScriptName { get; private set; }
+    public string? CommonUtilsDir { get; private set; }
 
     public static CliOptions Parse(string[] args)
     {
@@ -221,6 +283,39 @@ public sealed class CliOptions
 
                 case "--prefix":
                     o.Prefix = Next(args, ref i, a);
+                    break;
+
+                // ---- 批处理相关 ----
+                case "--batch":
+                    o.Batch = true;
+                    break;
+
+                case "--table-dir":
+                    o.TableDir = Next(args, ref i, a);
+                    break;
+
+                case "--lvl-dir":
+                    o.LvlDir = Next(args, ref i, a);
+                    break;
+
+                case "--batch-config":
+                    o.BatchConfigPath = Next(args, ref i, a);
+                    break;
+
+                case "--target-script":
+                    o.TargetScriptName = Next(args, ref i, a);
+                    break;
+
+                case "--deps-dir":
+                    o.DepsDir = Next(args, ref i, a);
+                    break;
+
+                case "--txtdecoder-script":
+                    o.TxtDecoderScriptName = Next(args, ref i, a);
+                    break;
+
+                case "--common-utils-dir":
+                    o.CommonUtilsDir = Next(args, ref i, a);
                     break;
 
                 default:
@@ -316,7 +411,7 @@ public sealed class CliOptions
     }
 
     /// <summary>去掉 JSON 中的 // 行注释（FontAtlasGenerator 的 cfg.json 含注释）。</summary>
-    private static string StripJsonComments(string json)
+    internal static string StripJsonComments(string json)
     {
         var sb = new StringBuilder(json.Length);
         bool inString = false;
@@ -361,6 +456,70 @@ public sealed class CliOptions
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 查找默认的批处理配置文件（与 exe 同目录或当前目录下的 .cfg.json，
+    /// 该文件同时是 FontAtlasGenerator 的字体配置）。返回 null 表示未找到。
+    /// </summary>
+    internal static string? FindDefaultCfg()
+    {
+        var exeDir = AppContext.BaseDirectory;
+        var candidates = new[]
+        {
+            Path.Combine(exeDir, ".cfg.json"),
+            Path.Combine(Directory.GetCurrentDirectory(), ".cfg.json"),
+        };
+        foreach (var c in candidates)
+        {
+            if (File.Exists(c)) return c;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 从批处理配置文件读取 table-dir / lvl-dir 等设置，仅填充当前为 null 的字段
+    /// （命令行参数优先）。
+    /// </summary>
+    internal static void LoadBatchFromConfig(CliOptions o, string cfgPath)
+    {
+        string json;
+        try
+        {
+            json = File.ReadAllText(cfgPath);
+        }
+        catch (Exception)
+        {
+            return;
+        }
+
+        json = StripJsonComments(json);
+
+        string? ReadStr(string key)
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty(key, out var el) && el.ValueKind == JsonValueKind.String)
+            {
+                return el.GetString();
+            }
+
+            return null;
+        }
+
+        var exeDir = Path.GetDirectoryName(Path.GetFullPath(cfgPath)) ?? ".";
+        string? Resolve(string? p) =>
+            string.IsNullOrEmpty(p) ? null : (Path.IsPathRooted(p) ? p : Path.GetFullPath(Path.Combine(exeDir, p)));
+
+        o.TableDir ??= Resolve(ReadStr("table-dir"));
+        o.LvlDir ??= Resolve(ReadStr("lvl-dir"));
+        o.OutputDir ??= Resolve(ReadStr("table-output"));
+        o.FontAtlasPath ??= Resolve(ReadStr("font-atlas-gen-exe"));
+        o.FontConfigPath ??= Resolve(ReadStr("font-config"));
+        o.TargetScriptName ??= ReadStr("target-script");
+        o.DepsDir ??= Resolve(ReadStr("deps-dir"));
+        o.TxtDecoderScriptName ??= ReadStr("txtdecoder-script");
+        o.CommonUtilsDir ??= Resolve(ReadStr("common-utils-dir"));
+    }
+
     private static string Next(string[] args, ref int i, string flag)
     {
         if (i + 1 >= args.Length)
@@ -394,6 +553,23 @@ public sealed class CliOptions
               "table-output": "./out"    输出目录
               "font-atlas-gen-exe": "..."    FontAtlasGenerator exe (可选)
               "table-prefix": "Npc"      函数名前缀 (可选)
+
+            批处理模式 (递归扫描 + 整合写入 lvl):
+              TableExporter --batch
+                  --table-dir <dir>   存放 [lvl]-[脚本].xlsx 的目录 (递归扫描子目录)
+                  --lvl-dir <dir>     存放 <lvl名>.lvl 的目录
+                  --batch-config <p>  批处理配置 json (默认 exe 同目录/.cfg.json)
+                  --target-script <n> 写入 lvl 的整合脚本名 (默认 TableExport)
+                  --deps-dir <dir>    额外依赖脚本目录 (可选)
+                  --txtdecoder-script <n> 写入 lvl 的 TxtDecoder 脚本名 (默认 TxtDecoder)
+                  --common-utils-dir <dir> bmp_utils/cumath_utils 脚本目录
+                                        (默认 exe 上级 smbx38a-tescript-common-utils)
+              配置 json 字段 (与 .cfg.json 共用, 命令行优先):
+                "table-dir", "lvl-dir", "table-output", "target-script",
+                "txtdecoder-script", "deps-dir", "common-utils-dir"
+              行为: 按 [lvl]-[脚本] 分组 -> 逐表导出 -> 变量加表名前缀后合并
+                    为一个整合脚本 -> 写入 <lvl>.lvl (SU 脚本)
+                    -> 据扫描到的表自动更新 .cfg.json 的 script 数组
 
             表头格式 (文档三行头):
               第1行: 备注/表名 (可含 [sheetName])

@@ -156,3 +156,61 @@ dotnet build -c Debug
 # 发布单文件 exe 到 build/
 dotnet publish -c Release -o ..\build
 ```
+
+## 批处理模式（递归扫描 + 整合写入 lvl）
+
+把「一个关卡相关的所有配置表」一次性导出，并整合进对应的 `.lvl` 关卡文件。
+
+### 表文件命名
+
+表文件必须命名为 `[关卡名]-[脚本名].xlsx`（也支持 `.xlsm` / `.csv`），例如：
+
+```
+[Test]-[char].xlsx        # 关卡 Test，脚本名 char
+[Test]-[condition].xlsx   # 关卡 Test，脚本名 condition
+[Test]-[text].xlsx        # 关卡 Test，脚本名 text
+```
+
+工具会**递归扫描** `--table-dir` 下的所有子目录，按 `[关卡名]` 分组：
+同一个关卡的多张表会被合并成一个「整合脚本」。
+
+### 用法
+
+配置两个目录的方式二选一：**控制台参数** 或 **JSON 配置文件**（复用 FontAtlasGenerator 的 `.cfg.json`）。
+
+```powershell
+# 方式一：纯命令行
+TableExporter.exe --batch `
+    --table-dir "tables" `      # 存放 [关卡]-[脚本].xlsx 的目录（递归）
+    --lvl-dir   "levels" `      # 存放 <关卡名>.lvl 的目录
+    --font-config .cfg.json `   # 字模转码配置（含 text 列时必需）
+    --out out                   # 中间 .smt 输出目录
+
+# 方式二：JSON 配置（在 .cfg.json 里加这几个键，命令行优先）
+#   "table-dir", "lvl-dir", "table-output", "target-script", "deps-dir"
+TableExporter.exe --batch
+```
+
+### 它会做什么
+
+1. **递归扫描** `[关卡]-[脚本].xlsx`，按关卡分组。
+2. 对每张表执行与单表相同的**导表流程**（含 text 列的字模转码）。
+3. **自动导表**并把每张表的中间脚本写到 `--out`（`<脚本名>_table.smt`）。
+4. **整合**：把同一关卡的所有表脚本合并为**一个**整合脚本，写入 `<关卡名>_table.smt`。
+   - 给每个表的**全局变量名**加表名前缀（`char__`、`condition__`、`text__` …），避免合并后重名。
+   - 每个表的导出**函数名**本来就带表名前缀（`Char_`、`Condition_`、`Text_` …）。
+   - 整合脚本开头为每张表添加**头注释**（`表(脚本)` / `所属关卡` / `源文件` / 前缀说明）。
+5. **写入 lvl**：把整合脚本作为 `SU` 脚本注入 `<关卡名>.lvl`
+   （沿用关卡里已有的脚本不会被破坏；关卡不存在时创建最小占位）。
+   同时尽力把运行期依赖 `cumath_utils` / `TxtDecoder` 也一并嵌入，使关卡自包含。
+6. **自动更新 `cfg.json`**：在 FontAtlasGenerator 的 `.cfg.json` 的 `script` 数组里
+   追加本次生成的整合脚本路径（仅追加，不删除已有项）。
+
+### 注意事项
+
+- 关卡内嵌脚本按 **GBK** 字节做 base64（`SMBXFile` 引擎的解析约定），因此本工程
+  关闭了 `InvariantGlobalization`，并注册了 `System.Text.CodePagesEncodingProvider`。
+- 整合脚本依赖 `CUMath_Decode`（来自 `cumath_utils`）与 `TXT` / `D`（来自 `TxtDecoder`）；
+  这两份 `.smt` 若在 `--deps-dir` 或常见目录下被发现，会被自动嵌入关卡。
+- 若同一关卡下出现两张表脚本名清洗后前缀相同，会自动追加数字后缀保证唯一。
+

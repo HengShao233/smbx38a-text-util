@@ -7,7 +7,8 @@
         <Nullable>enable</Nullable>
         <AssemblyName>TableExporter</AssemblyName>
         <RootNamespace>TableExporter</RootNamespace>
-        <InvariantGlobalization>true</InvariantGlobalization>
+        <!-- 必须为 false：lvl 内嵌脚本需按系统 ANSI/GBK(936) 字节编码 base64，
+             启用 InvariantGlobalization 会禁用 GBK 代码页，导致中文乱码。 -->
 
         <!-- 单文件发布配置, 与 FontAtlasGenerator 保持一致 -->
         <PublishSingleFile>true</PublishSingleFile>
@@ -21,6 +22,8 @@
 
     <ItemGroup>
         <PackageReference Include="DocumentFormat.OpenXml" Version="3.1.0"/>
+        <!-- GBK / gb2312 等 ANSI 代码页, 用于把 lvl 内嵌脚本按 GBK 字节编 base64 -->
+        <PackageReference Include="System.Text.Encoding.CodePages" Version="9.0.0"/>
     </ItemGroup>
 
     <!--
