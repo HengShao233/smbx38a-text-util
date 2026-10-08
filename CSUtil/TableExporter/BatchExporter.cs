@@ -7,8 +7,12 @@ namespace TableExporter;
 /// <summary>批处理模式的参数集合。</summary>
 public sealed class BatchOptions
 {
-    public string TableDir = string.Empty;
-    public string LvlDir = string.Empty;
+    /// <summary>表目录列表（可多目录，由 "|" 分隔的路径串解析而来；均递归扫描）。</summary>
+    public List<string> TableDirs = new();
+
+    /// <summary>lvl 目录列表（可多目录，由 "|" 分隔的路径串解析而来；首个存在的目录用于新建关卡）。</summary>
+    public List<string> LvlDirs = new();
+
     public string OutputDir = "out";
     public string? FontAtlasPath;
     public string? FontConfigPath;   // FontAtlasGenerator 的 .cfg.json 路径
@@ -34,30 +38,28 @@ public static class BatchExporter
     {
         Console.OutputEncoding = Encoding.UTF8;
 
-        if (string.IsNullOrWhiteSpace(bo.TableDir) || !Directory.Exists(bo.TableDir))
-        {
-            throw new ExportException($"表目录不存在或未指定: {bo.TableDir}");
-        }
-
-        if (string.IsNullOrWhiteSpace(bo.LvlDir) || !Directory.Exists(bo.LvlDir))
-        {
-            throw new ExportException($"lvl 目录不存在或未指定: {bo.LvlDir}");
-        }
+        // 1) 校验目录：允许多目录，缺失的目录给出提示并跳过，全部缺失才报错
+        bo.TableDirs = FilterExistingDirs(bo.TableDirs, "表目录", "--table-dir / \"table-dir\"");
+        bo.LvlDirs = FilterExistingDirs(bo.LvlDirs, "lvl 目录", "--lvl-dir / \"lvl-dir\"");
 
         Directory.CreateDirectory(bo.OutputDir);
 
-        // 1) 递归扫描所有 [lvl]-[script].xlsx
-        var tableFiles = ScanTables(bo.TableDir);
+        var displayTableDirs = string.Join(" | ", bo.TableDirs);
+        Console.WriteLine($"表目录 ({bo.TableDirs.Count}): {displayTableDirs}");
+        Console.WriteLine($"lvl 目录 ({bo.LvlDirs.Count}): {string.Join(" | ", bo.LvlDirs)}");
+
+        // 2) 递归扫描所有 [lvl]-[script].xlsx
+        var tableFiles = DedupeTables(ScanTables(bo.TableDirs));
         if (tableFiles.Count == 0)
         {
             throw new ExportException(
-                $"未在 {bo.TableDir} 及其子目录中找到形如 [lvl]-[script].xlsx 的表文件");
+                $"未在 {displayTableDirs} 及其子目录中找到形如 [lvl]-[script].xlsx 的表文件");
         }
 
         Console.WriteLine($"扫描到 {tableFiles.Count} 个表文件, 分布在 " +
                           $"{tableFiles.Select(t => t.LvlName).Distinct(StringComparer.OrdinalIgnoreCase).Count()} 个关卡。");
 
-        // 2) 按关卡分组
+        // 3) 按关卡分组
         var groups = tableFiles
             .GroupBy(t => t.LvlName, StringComparer.OrdinalIgnoreCase)
             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
@@ -131,18 +133,18 @@ public static class BatchExporter
                 var perTablePath = Path.Combine(bo.OutputDir, $"{tf.ScriptName}_table.smt");
                 File.WriteAllText(perTablePath, prefixed, new UTF8Encoding(false));
 
-                var relSource = RelativePath(bo.TableDir, tf.FullPath);
+                var relSource = RelativePath(tf.SourceDir, tf.FullPath);
                 perTable.Add((tf.ScriptName, tf.LvlName, relSource, prefixed));
             }
 
-            // 3) 整合为单个脚本
+            // 4) 整合为单个脚本
             var integrated = ScriptIntegrator.Integrate(perTable, bo.TargetScriptName);
             var integratedPath = Path.Combine(bo.OutputDir, $"{lvlName}_table.smt");
             File.WriteAllText(integratedPath, integrated, new UTF8Encoding(false));
             generatedScripts.Add(integratedPath);
 
-            // 4) 写入对应 .lvl
-            var lvlPath = Path.Combine(bo.LvlDir, lvlName + ".lvl");
+            // 5) 写入对应 .lvl（在多个 lvl 目录中定位已有关卡，均未找到则在首个目录下新建）
+            var lvlPath = ResolveLvlPath(bo, lvlName);
             WriteToLvl(lvlPath, bo, integrated, lvlName);
 
             var integratedSize = new FileInfo(integratedPath).Length;
@@ -152,7 +154,7 @@ public static class BatchExporter
 
         diag.ThrowIfError();
 
-        // 5) 更新 FontAtlasGenerator 的 .cfg.json 的 script 数组
+        // 6) 更新 FontAtlasGenerator 的 .cfg.json 的 script 数组
         if (!string.IsNullOrWhiteSpace(bo.FontConfigPath) && File.Exists(bo.FontConfigPath))
         {
             UpdateCfgScriptArray(bo.FontConfigPath, generatedScripts);
@@ -163,26 +165,108 @@ public static class BatchExporter
         return 0;
     }
 
-    /// <summary>递归扫描目录树，匹配 [lvl]-[script].xlsx，返回 (关卡名, 脚本名, 完整路径)。</summary>
-    private static List<(string LvlName, string ScriptName, string FullPath)> ScanTables(string dir)
+    /// <summary>
+    /// 校验目录列表：不存在的目录打印提示并剔除；全部不存在（或原本为空）时抛出错误。
+    /// 返回可用的目录列表。
+    /// </summary>
+    private static List<string> FilterExistingDirs(List<string> dirs, string label, string optionName)
     {
-        var result = new List<(string, string, string)>();
-        foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+        if (dirs.Count == 0)
         {
-            var name = Path.GetFileName(file);
-            if (name.StartsWith('~')) continue; // 排除 Excel 临时文件
+            throw new ExportException($"未指定{label} ({optionName})");
+        }
 
-            var m = TableNameRe.Match(name);
-            if (!m.Success) continue;
+        var usable = new List<string>();
+        foreach (var d in dirs)
+        {
+            if (Directory.Exists(d))
+            {
+                usable.Add(d);
+            }
+            else
+            {
+                Console.WriteLine($"[warn] {label}不存在, 已跳过: {d}");
+            }
+        }
 
-            var lvl = m.Groups["lvl"].Value.Trim();
-            var script = m.Groups["script"].Value.Trim();
-            if (lvl.Length == 0 || script.Length == 0) continue;
+        if (usable.Count == 0)
+        {
+            throw new ExportException($"{label}均不存在: {string.Join(" | ", dirs)}");
+        }
 
-            result.Add((lvl, script, file));
+        return usable;
+    }
+
+    /// <summary>
+    /// 递归扫描每个目录树，匹配 [lvl]-[script].xlsx，
+    /// 返回 (关卡名, 脚本名, 完整路径, 所在表目录)。多个目录的结果会被合并。
+    /// </summary>
+    private static List<(string LvlName, string ScriptName, string FullPath, string SourceDir)> ScanTables(
+        IEnumerable<string> dirs)
+    {
+        var result = new List<(string, string, string, string)>();
+        foreach (var dir in dirs)
+        {
+            foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+            {
+                var name = Path.GetFileName(file);
+                if (name.StartsWith('~')) continue; // 排除 Excel 临时文件
+
+                var m = TableNameRe.Match(name);
+                if (!m.Success) continue;
+
+                var lvl = m.Groups["lvl"].Value.Trim();
+                var script = m.Groups["script"].Value.Trim();
+                if (lvl.Length == 0 || script.Length == 0) continue;
+
+                result.Add((lvl, script, file, dir));
+            }
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 跨目录去重：同一文件（多目录嵌套导致重复扫到）只保留一次；
+    /// 同一关卡下的同名脚本（不同目录中各有一份）保留首个并打印提示。
+    /// </summary>
+    private static List<(string LvlName, string ScriptName, string FullPath, string SourceDir)> DedupeTables(
+        List<(string LvlName, string ScriptName, string FullPath, string SourceDir)> files)
+    {
+        var result = new List<(string, string, string, string)>();
+        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenScripts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var f in files)
+        {
+            if (!seenPaths.Add(f.FullPath)) continue;
+
+            if (!seenScripts.Add(f.LvlName + "\u0000" + f.ScriptName))
+            {
+                Console.WriteLine(
+                    $"[warn] 关卡 [{f.LvlName}] 的脚本 [{f.ScriptName}] 在多个表目录中重复出现, 已忽略: {f.FullPath}");
+                continue;
+            }
+
+            result.Add(f);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 在多个 lvl 目录中定位关卡文件：返回第一个存在 <c>&lt;lvl名&gt;.lvl</c> 的目录中的路径；
+    /// 都不存在时，在第一个 lvl 目录中新建。
+    /// </summary>
+    private static string ResolveLvlPath(BatchOptions bo, string lvlName)
+    {
+        foreach (var dir in bo.LvlDirs)
+        {
+            var candidate = Path.Combine(dir, lvlName + ".lvl");
+            if (File.Exists(candidate)) return candidate;
+        }
+
+        return Path.Combine(bo.LvlDirs[0], lvlName + ".lvl");
     }
 
     /// <summary>
@@ -231,6 +315,12 @@ public static class BatchExporter
         // 脚本顺序重整（lib/utils → TxtDecoder → 表脚本 → 其它）
         lvl.ReorderScripts(tableScript, txtScript);
 
+        var order = lvl.ScriptNames();
+        if (order.Count > 0)
+        {
+            Console.WriteLine($"    [info] 脚本顺序: {string.Join(" -> ", order)}");
+        }
+
         lvl.Save(lvlPath);
 
         if (created)
@@ -242,6 +332,7 @@ public static class BatchExporter
     /// <summary>
     /// 查找依赖脚本正文：依次在 --deps-dir / --common-utils-dir /
     /// exe 上级 smbx38a-tescript-common-utils / exe 同目录 / 若干 Teascripts/Release 路径中查找。
+    /// 多目录参数（表目录 / lvl 目录）会被逐一展开为候选路径。
     /// </summary>
     private static string? FindDependencyBody(BatchOptions bo, string fileName)
     {
@@ -252,9 +343,16 @@ public static class BatchExporter
             candidates.Add(Path.Combine(bo.CommonUtilsDir, fileName));
         candidates.Add(Path.Combine(AppContext.BaseDirectory, "..", "smbx38a-tescript-common-utils", fileName));
         candidates.Add(Path.Combine(AppContext.BaseDirectory, fileName));
-        candidates.Add(Path.Combine(bo.TableDir, "..", "Teascripts", "Release", fileName));
-        candidates.Add(Path.Combine(bo.LvlDir, "..", "Teascripts", "Release", fileName));
-        candidates.Add(Path.Combine(bo.LvlDir, "..", "..", "Teascripts", "Release", fileName));
+        foreach (var tableDir in bo.TableDirs)
+        {
+            candidates.Add(Path.Combine(tableDir, "..", "Teascripts", "Release", fileName));
+        }
+
+        foreach (var lvlDir in bo.LvlDirs)
+        {
+            candidates.Add(Path.Combine(lvlDir, "..", "Teascripts", "Release", fileName));
+            candidates.Add(Path.Combine(lvlDir, "..", "..", "Teascripts", "Release", fileName));
+        }
 
         var found = candidates.FirstOrDefault(File.Exists);
         if (found is null) return null;

@@ -26,6 +26,9 @@ public sealed class LvlFile
 
     private static readonly Regex HeaderRe = new(@"^SMBXFile(\d+)\s*$", RegexOptions.Compiled);
 
+    /// <summary>脚本名中的编号标记，如 <c>[1] TextBox</c> 的 <c>[1]</c>。</summary>
+    private static readonly Regex ScriptNumberRe = new(@"\[\s*(\d+)\s*\]", RegexOptions.Compiled);
+
     public static LvlFile Load(string path)
     {
         var raw = File.ReadAllBytes(path);
@@ -221,7 +224,9 @@ public sealed class LvlFile
     /// <summary>
     /// 重排脚本顺序：lib/utils 类（以 utils/util/lib/libs 结尾或以 lib 开头）置于最前，
     /// 其后是 TxtDecoder 脚本，再是表整合脚本，最后是其它游戏逻辑脚本；
-    /// 同类脚本保持原相对顺序。非脚本条目位置不变。
+    /// <b>其它游戏逻辑脚本</b>中，名称带 <c>[编号]</c> 的（如 <c>[1] TextBox</c>）按编号升序排在前，
+    /// 无编号的保持原相对顺序排在其后。同类脚本在同级条件下保持原相对顺序（稳定排序）。
+    /// 非脚本条目位置不变。
     /// </summary>
     public void ReorderScripts(string tableScriptName, string txtDecoderScriptName)
     {
@@ -238,26 +243,81 @@ public sealed class LvlFile
 
         if (slots.Count == 0) return;
 
-        var ordered = scripts
-            .Select((e, idx) => (e, idx))
-            .OrderBy(x => PriorityOf(x.e, tableScriptName, txtDecoderScriptName))
-            .ThenBy(x => x.idx)
-            .Select(x => x.e)
-            .ToList();
+        // 携带原始下标，排序时作为最后的稳定性依据（List.Sort 本身是不稳定排序）
+        var order = new List<int>(scripts.Count);
+        for (int i = 0; i < scripts.Count; i++) order.Add(i);
+
+        order.Sort((a, b) => CompareScripts(
+            scripts[a], a, scripts[b], b, tableScriptName, txtDecoderScriptName));
 
         for (int k = 0; k < slots.Count; k++)
         {
-            _entries[slots[k]] = ordered[k];
+            _entries[slots[k]] = scripts[order[k]];
         }
+    }
+
+    /// <summary>按当前顺序返回关卡中的脚本名（非脚本条目被忽略），用于日志核对。</summary>
+    public List<string> ScriptNames()
+    {
+        return _entries
+            .Where(e => IsScriptMarker(e.Marker))
+            .Select(ScriptName)
+            .ToList();
+    }
+
+    private const int PriorityLibUtils = 0;
+    private const int PriorityTxtDecoder = 1;
+    private const int PriorityTableScript = 2;
+    private const int PriorityOther = 3;
+
+    private static int CompareScripts(Entry a, int indexA, Entry b, int indexB,
+        string tableScriptName, string txtDecoderScriptName)
+    {
+        var pa = PriorityOf(a, tableScriptName, txtDecoderScriptName);
+        var pb = PriorityOf(b, tableScriptName, txtDecoderScriptName);
+        if (pa != pb) return pa.CompareTo(pb);
+
+        // 仅对"其它游戏逻辑"启用编号排序（F7）：
+        // 名称带 [N] 的按编号升序在前；不带编号的保持原相对顺序，排在所有带编号的脚本之后。
+        if (pa == PriorityOther)
+        {
+            var na = TryGetScriptNumber(ScriptName(a), out var va);
+            var nb = TryGetScriptNumber(ScriptName(b), out var vb);
+            if (na && nb)
+            {
+                if (va != vb) return va.CompareTo(vb);
+            }
+            else if (na != nb)
+            {
+                return na ? -1 : 1;
+            }
+        }
+
+        return indexA.CompareTo(indexB);
+    }
+
+    /// <summary>
+    /// 尝试从脚本名中提取编号：名称中出现 <c>[数字]</c> 即视为带编号（取首个匹配），
+    /// 如 <c>[1] TextBox</c> -> 1、<c>EventHandler [10]</c> -> 10。
+    /// </summary>
+    private static bool TryGetScriptNumber(string name, out int number)
+    {
+        number = 0;
+        if (string.IsNullOrEmpty(name)) return false;
+
+        var m = ScriptNumberRe.Match(name);
+        if (!m.Success) return false;
+
+        return int.TryParse(m.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out number);
     }
 
     private static int PriorityOf(Entry e, string tableScriptName, string txtDecoderScriptName)
     {
         var name = ScriptName(e);
-        if (IsLibUtilsName(name)) return 0;
-        if (string.Equals(name, DecodeName(txtDecoderScriptName), StringComparison.OrdinalIgnoreCase)) return 1;
-        if (string.Equals(name, DecodeName(tableScriptName), StringComparison.OrdinalIgnoreCase)) return 2;
-        return 3;
+        if (IsLibUtilsName(name)) return PriorityLibUtils;
+        if (string.Equals(name, DecodeName(txtDecoderScriptName), StringComparison.OrdinalIgnoreCase)) return PriorityTxtDecoder;
+        if (string.Equals(name, DecodeName(tableScriptName), StringComparison.OrdinalIgnoreCase)) return PriorityTableScript;
+        return PriorityOther;
     }
 
     private static bool IsLibUtilsName(string name)

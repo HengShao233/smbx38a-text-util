@@ -174,15 +174,35 @@ dotnet publish -c Release -o ..\build
 工具会**递归扫描** `--table-dir` 下的所有子目录，按 `[关卡名]` 分组：
 同一个关卡的多张表会被合并成一个「整合脚本」。
 
+### 多目录
+
+`--table-dir` 与 `--lvl-dir` 都支持一次指定**多个目录**，路径之间用 `|` 分隔：
+
+```powershell
+--table-dir "tables|..\shared\tables"   # 多个表目录都会被递归扫描并合并
+--lvl-dir   "levels|..\common\levels"   # 按顺序查找 <关卡名>.lvl
+```
+
+- **表目录**：全部递归扫描并合并；同一关卡下出现同名表（不同目录各一份）时保留首个并给出提示；
+  同一文件被重复扫到（目录嵌套）自动去重。
+- **lvl 目录**：按指定顺序查找 `<关卡名>.lvl`，命中即写入该处；都没找到时在**第一个** lvl 目录中新建。
+- 单个不存在目录只打印 `[warn]` 并跳过；全部不存在才报错。
+- JSON 配置里同样支持两种写法（相对路径基于配置文件所在目录）：
+
+  ```json
+  "table-dir": "tables|..\shared\tables",
+  "lvl-dir":   ["levels", "..\common\levels"]
+  ```
+
 ### 用法
 
-配置两个目录的方式二选一：**控制台参数** 或 **JSON 配置文件**（复用 FontAtlasGenerator 的 `.cfg.json`）。
+配置目录的方式二选一：**控制台参数** 或 **JSON 配置文件**（复用 FontAtlasGenerator 的 `.cfg.json`）。
 
 ```powershell
 # 方式一：纯命令行
 TableExporter.exe --batch `
-    --table-dir "tables" `      # 存放 [关卡]-[脚本].xlsx 的目录（递归）
-    --lvl-dir   "levels" `      # 存放 <关卡名>.lvl 的目录
+    --table-dir "tables" `      # 存放 [关卡]-[脚本].xlsx 的目录（递归），可用 | 分隔多个
+    --lvl-dir   "levels" `      # 存放 <关卡名>.lvl 的目录，可用 | 分隔多个
     --font-config .cfg.json `   # 字模转码配置（含 text 列时必需）
     --out out                   # 中间 .smt 输出目录
 
@@ -203,7 +223,12 @@ TableExporter.exe --batch
 5. **写入 lvl**：把整合脚本作为 `SU` 脚本注入 `<关卡名>.lvl`
    （沿用关卡里已有的脚本不会被破坏；关卡不存在时创建最小占位）。
    同时尽力把运行期依赖 `cumath_utils` / `TxtDecoder` 也一并嵌入，使关卡自包含。
-6. **自动更新 `cfg.json`**：在 FontAtlasGenerator 的 `.cfg.json` 的 `script` 数组里
+6. **脚本顺序重整**：写入后对关卡内的脚本重排，顺序为
+   `lib/utils 类 → TxtDecoder → 表整合脚本 → 其它脚本`；
+   其中「其它脚本」里**名称带编号**的（如 `[1] TextBox`）按编号升序排在前，
+   **无编号**的保持原有相对顺序排在其后。非脚本条目位置不变。
+   实际顺序会以 `[info] 脚本顺序: A -> B -> ...` 打印出来。
+7. **自动更新 `cfg.json`**：在 FontAtlasGenerator 的 `.cfg.json` 的 `script` 数组里
    追加本次生成的整合脚本路径（仅追加，不删除已有项）。
 
 ### 注意事项

@@ -154,8 +154,9 @@ public static class Program
 
         return new BatchOptions
         {
-            TableDir = o.TableDir ?? string.Empty,
-            LvlDir = o.LvlDir ?? string.Empty,
+            // 多目录支持：单个路径串里可用 "|" 分隔多个目录（命令行与 JSON 配置均可）
+            TableDirs = CliOptions.SplitPaths(o.TableDir),
+            LvlDirs = CliOptions.SplitPaths(o.LvlDir),
             OutputDir = o.OutputDir ?? "out",
             FontAtlasPath = o.FontAtlasPath,
             FontConfigPath = o.FontConfigPath
@@ -231,13 +232,52 @@ public sealed class CliOptions
 
     // 批处理相关
     public bool Batch { get; private set; }
+
+    /// <summary>表目录原始取值：可以是单个路径，也可以是 "|" 分隔的多个路径。</summary>
     public string? TableDir { get; private set; }
+
+    /// <summary>lvl 目录原始取值：可以是单个路径，也可以是 "|" 分隔的多个路径。</summary>
     public string? LvlDir { get; private set; }
+
     public string? BatchConfigPath { get; private set; }
     public string? TargetScriptName { get; private set; }
     public string? DepsDir { get; private set; }
     public string? TxtDecoderScriptName { get; private set; }
     public string? CommonUtilsDir { get; private set; }
+
+    /// <summary>多目录分隔符。</summary>
+    public const char PathSeparator = '|';
+
+    /// <summary>
+    /// 把 "|" 分隔的路径串解析为路径列表：去除空项与重复项，保留原有顺序，
+    /// 相对路径按当前工作目录展开为绝对路径。null / 空白返回空列表。
+    /// </summary>
+    internal static List<string> SplitPaths(string? raw)
+    {
+        var list = new List<string>();
+        if (string.IsNullOrWhiteSpace(raw)) return list;
+
+        foreach (var part in raw.Split(PathSeparator))
+        {
+            var p = part.Trim().Trim('"');
+            if (p.Length == 0) continue;
+
+            string full;
+            try
+            {
+                full = Path.GetFullPath(p);
+            }
+            catch (Exception)
+            {
+                // 非法路径（如含 * 等通配符字符）：保留原值，交由后续的存在性检查报错
+                full = p;
+            }
+
+            if (!list.Contains(full, StringComparer.OrdinalIgnoreCase)) list.Add(full);
+        }
+
+        return list;
+    }
 
     public static CliOptions Parse(string[] args)
     {
@@ -509,8 +549,47 @@ public sealed class CliOptions
         string? Resolve(string? p) =>
             string.IsNullOrEmpty(p) ? null : (Path.IsPathRooted(p) ? p : Path.GetFullPath(Path.Combine(exeDir, p)));
 
-        o.TableDir ??= Resolve(ReadStr("table-dir"));
-        o.LvlDir ??= Resolve(ReadStr("lvl-dir"));
+        // 读取目录类配置：支持字符串（可用 "|" 分隔多个目录）或字符串数组；
+        // 每项经 Resolve 展开后再用 "|" 拼回原始取值串。
+        string? ReadDirs(string key)
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty(key, out var el)) return null;
+
+            var parts = new List<string>();
+            if (el.ValueKind == JsonValueKind.String)
+            {
+                var raw = el.GetString();
+                if (!string.IsNullOrWhiteSpace(raw))
+                {
+                    parts.AddRange(raw.Split(PathSeparator));
+                }
+            }
+            else if (el.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in el.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.String) parts.Add(item.GetString()!);
+                }
+            }
+            else
+            {
+                return null;
+            }
+
+            var resolved = parts
+                .Select(p => p.Trim())
+                .Where(p => p.Length > 0)
+                .Select(p => Resolve(p))
+                .Where(p => p is not null)
+                .Select(p => p!)
+                .ToList();
+
+            return resolved.Count == 0 ? null : string.Join(PathSeparator, resolved);
+        }
+
+        o.TableDir ??= ReadDirs("table-dir");
+        o.LvlDir ??= ReadDirs("lvl-dir");
         o.OutputDir ??= Resolve(ReadStr("table-output"));
         o.FontAtlasPath ??= Resolve(ReadStr("font-atlas-gen-exe"));
         o.FontConfigPath ??= Resolve(ReadStr("font-config"));
@@ -564,12 +643,24 @@ public sealed class CliOptions
                   --txtdecoder-script <n> 写入 lvl 的 TxtDecoder 脚本名 (默认 TxtDecoder)
                   --common-utils-dir <dir> bmp_utils/cumath_utils 脚本目录
                                         (默认 exe 上级 smbx38a-tescript-common-utils)
+
+              多目录: --table-dir / --lvl-dir 可一次指定多个目录, 之间用 '|' 分隔, 如
+                  --table-dir "tables|..\shared\tables"
+                  --lvl-dir   "levels|..\common\levels"
+                  多个表目录会被全部递归扫描并合并 (同一关卡的同名表以首个为准);
+                  多个 lvl 目录会按序查找 <lvl名>.lvl, 均未找到时在第一个目录中新建。
               配置 json 字段 (与 .cfg.json 共用, 命令行优先):
                 "table-dir", "lvl-dir", "table-output", "target-script",
                 "txtdecoder-script", "deps-dir", "common-utils-dir"
+                table-dir / lvl-dir 支持两种写法:
+                  "table-dir": "tables|..\shared\tables"   // '|' 分隔的字符串
+                  "table-dir": ["tables", "..\shared\tables"]  // 字符串数组
               行为: 按 [lvl]-[脚本] 分组 -> 逐表导出 -> 变量加表名前缀后合并
                     为一个整合脚本 -> 写入 <lvl>.lvl (SU 脚本)
                     -> 据扫描到的表自动更新 .cfg.json 的 script 数组
+                    -> 关卡内脚本顺序重整:
+                       lib/utils 类 -> TxtDecoder -> 表脚本 -> 其它脚本
+                       其中"其它脚本"里带 [编号] 的按编号升序排在前, 无编号的保持原序排在其后
 
             表头格式 (文档三行头):
               第1行: 备注/表名 (可含 [sheetName])
